@@ -49,10 +49,22 @@
 
     /* ── Header ──────────────────────────────────────────────────────────── */
     .header {
-      display: flex; align-items: center; gap: 14px;
-      padding: 14px 22px;
-      background: var(--card); border-radius: var(--r);
-      box-shadow: var(--shadow-out);
+        display: flex; align-items: center; gap:14px;
+        padding:14px 22px;
+        border-radius: var(--r);
+        box-shadow: var(--shadow-out);
+        /* Texture header : dot grid teal + radial glow top — light mode */
+        background:
+            radial-gradient(ellipse 70% 90% at 50% -20%, rgba(45,125,111,0.07) 0%, transparent 100%),
+            radial-gradient(circle at 1px 1px, rgba(45,125,111,0.10) 1px, transparent 0) 0 0 / 18px 18px,
+            var(--card);
+    }
+    body.dark .header {
+        /* Dark mode : même structure, palette teal acid */
+        background:
+            radial-gradient(ellipse 70% 90% at 50% -20%, rgba(0,255,136,0.06) 0%, transparent 100%),
+            radial-gradient(circle at 1px 1px, rgba(0,255,136,0.07) 1px, transparent 0) 0 0 / 18px 18px,
+            var(--card);
     }
     .header-left { display: flex; align-items: center; gap: 12px; min-width: 180px; }
     .logo-icon { width: 40px; height: 40px; background: linear-gradient(135deg,rgba(45,125,111,0.15),rgba(45,125,111,0.05)); border: 1px solid rgba(45,125,111,0.2); border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
@@ -329,76 +341,87 @@
     </div>
 
     <!-- Row 1 : Endlessh / CrowdSec / Bouncer / Système -->
-    <div class="grid4">
-      <div class="card a-rose" id="card-endlessh">
-        <div class="card-header">
-          <div><div class="card-label">Endlessh</div><div class="card-desc">Piège les bots SSH port 22</div></div>
-          <div class="icon-chip"><i class="ph-fill ph-bug-beetle"></i></div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px;align-items:stretch;" id="grid-row1">
+        <div class="card" id="card-globe"
+            style="padding:0;overflow:hidden;position:relative;">
+            <div id="globe-loading"
+                style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;font-family:'DM Mono',monospace;color:var(--muted);letter-spacing:0.5px;">
+                    Chargement de la carte…
+            </div>
+            <div id="globe-mount" style="width:100%;height:100%;"></div>
+            <div style="position:absolute;bottom:8px;left:12px;font-size:9px;
+                    font-family:'DM Mono',monospace;color:var(--muted);
+                    font-weight:700;letter-spacing:0.5px;"
+                id="globe-counter"></div>
         </div>
-        <div class="card-value" id="val-endlessh-total"><span class="skel"></span></div>
-        <div class="card-sub">bots piégés <b>total</b></div>
-        <div class="card-sub" style="margin-top:4px" id="sub-endlessh">24h : —</div>
-      </div>
-      <div class="card">
-        <div class="card-header">
-          <div><div class="card-label">CrowdSec IPS</div><div class="card-desc">Bans actifs &amp; alertes</div></div>
-          <div class="icon-chip"><i class="ph-fill ph-shield-check"></i></div>
+        <div class="card a-rose" id="card-endlessh">
+            <div class="card-header">
+                <div><div class="card-label">Endlessh</div><div class="card-desc">Piège les bots SSH port 22</div></div>
+                <div class="icon-chip"><i class="ph-fill ph-bug-beetle"></i></div>
+            </div>
+            <div class="card-value" id="val-endlessh-total"><span class="skel"></span></div>
+            <div class="card-sub">bots piégés <b>total</b></div>
+            <div class="card-sub" style="margin-top:4px" id="sub-endlessh">24h : —</div>
         </div>
-        <div class="card-value" id="val-crowdsec"><span class="skel"></span></div>
-        <div class="card-sub">IP bannies <b>actives</b></div>
-        <div class="card-sub" style="margin-top:4px" id="sub-crowdsec">Alertes 24h : —</div>
-      </div>
-      <div class="card" id="card-bouncer">
-        <div class="card-header">
-          <div><div class="card-label">CrowdSec Bouncer</div><div class="card-desc">Applique les bans iptables</div></div>
-          <div class="icon-chip"><i class="ph-fill ph-lightning"></i></div>
+        <div class="card" id="card-crowdsec-merged">
+          <div class="card-header">
+            <div>
+              <div class="card-label">CrowdSec</div>
+              <div class="card-desc">IPS + Bouncer actif</div>
+            </div>
+            <div class="icon-chip"><i class="ph-fill ph-shield-check"></i></div>
         </div>
-        <div class="bouncer-status">
+        <div class="bouncer-status" style="margin-bottom:10px;">
           <div class="bouncer-dot bouncer-unknown" id="bouncer-dot"></div>
           <span class="status-label" id="val-bouncer">—</span>
         </div>
-        <div class="card-sub" style="margin-top:10px" id="sub-bouncer">Sans le bouncer, les IPs ne sont pas bannies</div>
-      </div>
-
-      <!-- Système : sans chip, donuts 72px -->
-      <div class="card a-green" id="card-system">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-          <span style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);">Système</span>
-          <span style="font-size:10px;color:var(--muted);font-weight:500;" id="sys-uptime-inline"></span>
-        </div>
-        <div style="display:flex;justify-content:space-around;align-items:center;gap:6px;">
-          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
-            <div style="position:relative;width:72px;height:72px;">
-              <canvas id="donut-cpu" width="72" height="72"></canvas>
-              <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
-                <span style="font-size:15px;font-weight:800;letter-spacing:-1px;" id="sys-cpu">—</span>
-                <span style="font-size:8px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">CPU</span>
-              </div>
-            </div>
-            <span style="font-size:10px;color:var(--muted);font-weight:600;" id="sys-cpu-cores">—</span>
-          </div>
-          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
-            <div style="position:relative;width:72px;height:72px;">
-              <canvas id="donut-mem" width="72" height="72"></canvas>
-              <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
-                <span style="font-size:15px;font-weight:800;letter-spacing:-1px;" id="sys-mem">—</span>
-                <span style="font-size:8px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">RAM</span>
-              </div>
-            </div>
-            <span style="font-size:10px;color:var(--muted);font-weight:600;" id="sys-mem-total">—</span>
-          </div>
-          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
-            <div style="position:relative;width:72px;height:72px;">
-              <canvas id="donut-disk" width="72" height="72"></canvas>
-              <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
-                <span style="font-size:15px;font-weight:800;letter-spacing:-1px;" id="sys-disk">—</span>
-                <span style="font-size:8px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">Disque</span>
-              </div>
-            </div>
-            <span style="font-size:10px;color:var(--muted);font-weight:600;" id="sys-disk-total">—</span>
-          </div>
+        <div id="sub-bouncer" style="display:none;"></div>
+        <div class="card-value" id="val-crowdsec"><span class="skel"></span></div>
+        <div class="card-sub" style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+          <span>IP bannies <b>actives</b></span>
+          <span id="sub-crowdsec" style="font-size:11px;color:var(--muted);">Alertes 24h : —</span>
         </div>
       </div>
+        
+        <!-- Système : sans chip, donuts 72px -->
+        <div class="card a-green" id="card-system">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+                <span style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);">Système</span>
+                <span style="font-size:10px;color:var(--muted);font-weight:500;" id="sys-uptime-inline"></span>
+            </div>
+            <div style="display:flex;justify-content:space-around;align-items:center;gap:6px;margin-top:24px;">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+                    <div style="position:relative;width:72px;height:72px;">
+                        <canvas id="donut-cpu" width="72" height="72"></canvas>
+                        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+                            <span style="font-size:15px;font-weight:800;letter-spacing:-1px;" id="sys-cpu">—</span>
+                            <span style="font-size:8px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">CPU</span>
+                        </div>
+                    </div>
+                    <span style="font-size:10px;color:var(--muted);font-weight:600;" id="sys-cpu-cores">—</span>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+                    <div style="position:relative;width:72px;height:72px;">
+                        <canvas id="donut-mem" width="72" height="72"></canvas>
+                        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+                            <span style="font-size:15px;font-weight:800;letter-spacing:-1px;" id="sys-mem">—</span>
+                            <span style="font-size:8px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">RAM</span>
+                        </div>
+                    </div>
+                    <span style="font-size:10px;color:var(--muted);font-weight:600;" id="sys-mem-total">—</span>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+                    <div style="position:relative;width:72px;height:72px;">
+                        <canvas id="donut-disk" width="72" height="72"></canvas>
+                        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+                            <span style="font-size:15px;font-weight:800;letter-spacing:-1px;" id="sys-disk">—</span>
+                            <span style="font-size:8px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">Disque</span>
+                        </div>
+                    </div>
+                    <span style="font-size:10px;color:var(--muted);font-weight:600;" id="sys-disk-total">—</span>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Row 2 : UFW / Auditd / rkhunter / AIDE -->
@@ -672,10 +695,10 @@ function updateBouncer(b) {
   dot.className = 'bouncer-dot';
   if (st === 'active') {
     dot.classList.add('bouncer-active'); val.innerHTML = '✅ <b>Actif</b>';
-    sub.textContent = 'Les bans sont appliqués en temps réel'; setCard('card-bouncer', 'a-green');
+    sub.style.display='none'; setCard('card-crowdsec-merged','a-green');
   } else if (st === 'inactive' || st === 'failed') {
     dot.classList.add('bouncer-inactive'); val.textContent = '❌ Inactif';
-    sub.textContent = '⚠️ Les IPs ne sont pas bannies'; setCard('card-bouncer', 'a-red');
+    sub.style.display=''; sub.textContent='⚠️ CrowdSec ne bannit PAS'; setCard('card-crowdsec-merged','a-red');
   } else {
     dot.classList.add('bouncer-unknown'); val.textContent = '❓ Inconnu';
     sub.textContent = 'Statut non déterminé';
@@ -839,6 +862,97 @@ applyTheme(sessionStorage.getItem('vps_theme_dark') === '1');
 setTab(sessionStorage.getItem('active_tab') || 'cockpit');
 refresh();
 loadTelegramStatus();
+
+let _globeInstance = null;
+let _globeLibsLoaded = false;
+
+function _loadGlobeLibs(cb) {
+  if (_globeLibsLoaded) { cb(); return; }
+  const s1 = document.createElement('script');
+  s1.src = 'https://unpkg.com/three@0.152.2/build/three.min.js';
+  s1.onload = () => {
+    const s2 = document.createElement('script');
+    s2.src = 'https://unpkg.com/globe.gl@2.26.5/dist/globe.gl.min.js';
+    s2.onload = () => { _globeLibsLoaded = true; cb(); };
+    document.head.appendChild(s2);
+  };
+  document.head.appendChild(s1);
+}
+
+function initGlobe() {
+  _loadGlobeLibs(async () => {
+    const res = await fetch('/api/geomap', {
+      cache: 'no-store', headers: { 'Authorization': AUTH }
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const dark = document.body.classList.contains('dark');
+    const el   = $('globe-mount');
+    const card = $('card-globe');
+    if (_globeInstance) { el.innerHTML = ''; _globeInstance = null; }
+    // Hauteur = celle de la card voisine (Système) pour alignement parfait
+    const refH = $('card-system').offsetHeight || 220;
+    card.style.height = refH + 'px';
+    el.style.height   = refH + 'px';
+    const points = [
+      ...(data.attackers || []).map(a => ({
+        lat: a.lat, lng: a.lng,
+        size: Math.min(0.8, 0.2 + (a.count || 1) / 6000),
+        color: (a.count || 1) > 5 ? (dark ? '#ff4d6d' : '#e05a7a')
+                                   : (dark ? '#f0b429' : '#c9a84c'),
+        label: `<div style="font-family:'DM Mono',monospace;font-size:12px;padding:4px 8px;">
+          <b>${a.country || '?'}</b> · ${(a.count || 1)} IP${(a.count||1)>1?'s':''} piégées
+        </div>`
+      })),
+      { lat: data.server.lat, lng: data.server.lng,
+        size: 0.9, color: dark ? '#00ff87' : '#22c55e',
+        label: 'Ton serveur' }
+    ];
+    const arcs = (data.attackers || []).map(a => ({
+      startLat: a.lat, startLng: a.lng,
+      endLat: data.server.lat, endLng: data.server.lng,
+      color: (a.count || 1) > 5 ? (dark ? '#ff4d6d' : '#e05a7a')
+                                 : (dark ? '#f0b429' : '#c9a84c')
+    }));
+    _globeInstance = Globe()(el)
+      .width(el.offsetWidth || 300)
+      .height(refH)
+      .globeImageUrl(dark
+        ? 'https://unpkg.com/three-globe/example/img/earth-dark.jpg'
+        : 'https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg')
+      .backgroundImageUrl('https://unpkg.com/three-globe/example/img/night-sky.png')
+      .backgroundColor('#000008')
+      .atmosphereColor(dark ? '#00ff87' : '#2d7d6f')
+      .atmosphereAltitude(0.12)
+      .pointsData(points)
+      .pointLat('lat').pointLng('lng')
+      .pointColor('color').pointAltitude(0.01)
+      .pointRadius('size').pointLabel('label')
+      .arcsData(arcs)
+      .arcStartLat('startLat').arcStartLng('startLng')
+      .arcEndLat('endLat').arcEndLng('endLng')
+      .arcColor('color').arcAltitude(0.22).arcStroke(0.4)
+      .arcDashLength(0.3).arcDashGap(0.7).arcDashAnimateTime(2500);
+    _globeInstance.controls().autoRotate = true;
+    _globeInstance.controls().autoRotateSpeed = 0.3;
+    _globeInstance.controls().enableZoom = true;
+    _globeInstance.pointOfView({ lat: data.server.lat, lng: data.server.lng, altitude: 0.6 }, 0);
+    $('globe-loading').style.display = 'none';
+    $('globe-counter').textContent = '';
+  });
+}
+
+const _origToggleTheme = toggleTheme;
+window.toggleTheme = function() {
+  _origToggleTheme();
+  if (_globeInstance) {
+    $('globe-loading').style.display = 'flex';
+    initGlobe();
+  }
+};
+
+setTimeout(initGlobe, 800);
+
 
 /* ── Containers ───────────────────────────────────────────────────────────── */
 const SVC_META = {
