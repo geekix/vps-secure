@@ -338,9 +338,9 @@ Score de santé 0–100 avec mascotte secrète au score parfait.
 
 | Carte | Ce qu'elle mesure |
 |---|---|
+| Threat Map | Globe interactif — arcs d'attaque en temps réel · IPs géolocalisées (Endlessh + CrowdSec) |
 | Endlessh | Bots piégés total · 24h · durée moy. de piégeage |
-| CrowdSec IPS | IP bannies actives · alertes 24h |
-| CrowdSec Bouncer | Statut actif/inactif — applique les bans iptables |
+| CrowdSec | IP bannies actives · alertes 24h · statut bouncer iptables |
 | Système | CPU · RAM · Disque (donuts) · uptime |
 | UFW Firewall | Blocages totaux sur les logs |
 | Auditd | Escalades sudo du jour |
@@ -351,6 +351,8 @@ Score de santé 0–100 avec mascotte secrète au score parfait.
 | Ports ouverts | Ports TCP en écoute · détection des ports inattendus |
 
 Timeline des 25 derniers événements sécurité avec défilement animé. Toggles Telegram interactifs (rapport 09h00 · alerte SSH).
+
+> **Threat Map** - zoom centré sur le serveur, rotation automatique, zoom souris activé. Fond étoilé permanent. Points rouges = sources d'attaque actives, point vert = position du serveur. Cache 5 min côté backend.
 
 ### Onglet Journal de sécurité
 
