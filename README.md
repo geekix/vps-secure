@@ -54,7 +54,7 @@ bots piégés, IP bannies, blocages UFW, intégrité systeme, détection de root
 
 
  <p align="center">
-  <img src="./dashboard/dashboard-preview-light.png" alt="VPS Secure Dashboard" width="100%">
+  <img src="./dashboard/dashboard-preview.jpg" alt="VPS Secure Dashboard" width="100%">
 </p>
 
 
@@ -326,7 +326,7 @@ Le script te demande un domaine et un mot de passe. Ton mot de passe sera sauveg
 > Pour générer un mot de passe sécurisé : `openssl rand -base64 32`
 
 <p align="center">
-  <img src="./dashboard/dashboard-preview.png" alt="VPS Secure Dashboard" width="100%">
+  <img src="./dashboard/dashboard-preview.jpg" alt="VPS Secure Dashboard" width="100%">
 </p>
 <p align="center">
   <img src="./dashboard/dashboard-preview-light.png" alt="VPS Secure Dashboard" width="100%">
