@@ -1587,6 +1587,120 @@ def get_container_updates() -> dict:
     _updates_cache_time = now
     return result
 
+# ── Geomap ───────────────────────────────────────────────────────────────────
+_geomap_cache: dict = {'ts': 0, 'data': None}
+_server_coords: dict | None = None
+
+
+def _get_public_ip() -> str:
+    try:
+        with urllib.request.urlopen(
+            'https://api.ipify.org?format=json', timeout=5
+        ) as resp:
+            return json.loads(resp.read()).get('ip', '')
+    except Exception:
+        return ''
+
+
+def _resolve_server_coords(server_ip: str) -> dict:
+    try:
+        req = urllib.request.Request(
+            f'http://ip-api.com/json/{server_ip}',
+            headers={'User-Agent': 'vps-monitor/1.0'},
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            d = json.loads(resp.read())
+            if d.get('status') == 'success':
+                return {'lat': d['lat'], 'lng': d['lon']}
+    except Exception:
+        pass
+    return {'lat': 48.8566, 'lng': 2.3522}
+
+
+def _get_crowdsec_ips() -> list:
+    try:
+        out = subprocess.check_output(
+            ['docker', 'exec', CROWDSEC_CONTAINER,
+             'cscli', 'decisions', 'list', '-o', 'json'],
+            stderr=subprocess.DEVNULL, timeout=10,
+        )
+        decisions = json.loads(out) or []
+        ips = []
+        for d in decisions:
+            val = d.get('value', '')
+            ip = val.split(':')[0].split('/')[0]
+            if ip:
+                ips.append(ip)
+        return list(set(ips))
+    except Exception:
+        return []
+
+
+def _get_endlessh_ips() -> list:
+    try:
+        out = subprocess.check_output(
+            ['docker', 'logs', ENDLESSH_CONTAINER, '--tail', '500'],
+            stderr=subprocess.STDOUT, timeout=10,
+        )
+        return list(set(re.findall(
+            r'\b(?:\d{1,3}\.){3}\d{1,3}\b', out.decode('utf-8', 'ignore')
+        )))
+    except Exception:
+        return []
+
+
+def _geolocate_ips(ips: list) -> list:
+    results = []
+    try:
+        for i in range(0, len(ips), 100):
+            batch = [
+                {'query': ip, 'fields': 'status,lat,lon,countryCode,query'}
+                for ip in ips[i:i + 100]
+            ]
+            data = json.dumps(batch).encode('utf-8')
+            req = urllib.request.Request(
+                'http://ip-api.com/batch',
+                data=data,
+                headers={
+                    'Content-Type': 'application/json',
+                    'User-Agent': 'vps-monitor/1.0',
+                },
+                method='POST',
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                results.extend(json.loads(resp.read()))
+    except Exception:
+        pass
+    return results
+
+
+def api_geomap() -> dict:
+    global _geomap_cache, _server_coords
+    if _geomap_cache['data'] and time.time() - _geomap_cache['ts'] < 300:
+        return _geomap_cache['data']
+    if not _server_coords:
+        server_ip = _get_public_ip()
+        _server_coords = _resolve_server_coords(server_ip)
+    ips = list(set(_get_crowdsec_ips() + _get_endlessh_ips()))[:200]
+    geo_results = _geolocate_ips(ips) if ips else []
+    from collections import defaultdict
+    groups: dict = defaultdict(
+        lambda: {'lat': 0, 'lng': 0, 'count': 0, 'country': ''}
+    )
+    for g in geo_results:
+        if g.get('status') != 'success':
+            continue
+        key = g['countryCode']
+        groups[key]['lat'] = g['lat']
+        groups[key]['lng'] = g['lon']
+        groups[key]['country'] = g['countryCode']
+        groups[key]['count'] += 1
+    attackers = sorted(
+        groups.values(), key=lambda x: x['count'], reverse=True
+    )
+    data = {'server': _server_coords, 'attackers': list(attackers)}
+    _geomap_cache = {'ts': time.time(), 'data': data}
+    return data
 
 # ── HTTP Handler ──────────────────────────────────────────────────────────────
 ROUTES = {
@@ -1597,6 +1711,7 @@ ROUTES = {
     "/api/telegram/status":     lambda: get_telegram_status(),
     "/api/containers":          lambda: get_containers(),
     "/api/containers/updates":  lambda: get_container_updates(),
+    "/api/geomap":              api_geomap,
 }
 
 
