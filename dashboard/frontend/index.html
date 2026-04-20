@@ -365,8 +365,10 @@
                 <div class="icon-chip"><i class="ph-fill ph-bug-beetle"></i></div>
             </div>
             <div class="card-value" id="val-endlessh-total"><span class="skel"></span></div>
-            <div class="card-sub">bots piégés <b>total</b></div>
-            <div class="card-sub" style="margin-top:4px" id="sub-endlessh">24h : —</div>
+            <div class="card-sub" style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+              <span>bots piégés <b>total</b></span>
+              <span id="sub-endlessh" style="font-size:11px;color:var(--muted);">Durée moy. : —</span>
+            </div>
         </div>
         <div class="card" id="card-crowdsec-merged">
           <div class="card-header">
@@ -771,7 +773,7 @@ function updateCards(d) {
   const mem = s.memory || {}, dsk = s.disk || {}, upd = d.updates || {};
   updateScore(d.score);
   $('val-endlessh-total').textContent = fmt(e.total);
-  $('sub-endlessh').innerHTML = `24h : <b>${fmt(e.last24h)}</b> · Durée moy. : <b>${e.avg_duration_fmt || '—'}</b>`;
+  $('sub-endlessh').innerHTML = `Durée moy. : <b>${e.avg_duration_fmt || '—'}</b>`;
   setCard('card-endlessh', e.last24h > 0 ? 'a-green' : '');
   $('val-crowdsec').textContent = fmt(c.active_bans);
   $('sub-crowdsec').innerHTML = `Alertes 24h : <b>${fmt(c.alerts_24h)}</b>`;
