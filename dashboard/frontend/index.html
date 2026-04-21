@@ -1115,7 +1115,6 @@ window.fetchContainers = async function() {
     // Appel background — peut prendre plusieurs secondes (appels Docker Hub)
     fetchContainerUpdates();
   } catch(e) {
-    console.error('fetchContainers ERROR:', e);
     grid.innerHTML = `<div class="card" style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted);">
       Erreur chargement containers — vérifier que docker.sock est monté
     </div>`;
