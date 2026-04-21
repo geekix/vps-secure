@@ -1205,17 +1205,14 @@ cat > /etc/audit/rules.d/vps-secure.rules << 'AUDITEOF'
 # Ces règles comblent ce trou forensique.
 
 # 1. Exécution vps-secure-aide-rebase (SSH, API dashboard, cron — toutes sources)
--a always,exit -F arch=b64 -S execve -F path=/usr/local/bin/vps-secure-aide-rebase -k aide_rebase_exec
--a always,exit -F arch=b32 -S execve -F path=/usr/local/bin/vps-secure-aide-rebase -k aide_rebase_exec
+-w /usr/local/bin/vps-secure-aide-rebase -p x -k aide_rebase_exec
+-w /usr/sbin/aide -p x -k aide_exec
 
-# 2. Exécution directe aide (--update, --init = modification baseline)
--a always,exit -F arch=b64 -S execve -F path=/usr/sbin/aide -k aide_exec
-
-# 3. Écriture sur la baseline AIDE (vecteur de compromission silencieuse)
+# 2. Écriture sur la baseline AIDE (vecteur de compromission silencieuse)
 -w /var/lib/aide/aide.db -p wa -k aide_db_write
 -w /var/lib/aide/aide.db.new -p wa -k aide_db_write
 
-# 4. Capturer toutes les execve root sans loginuid (daemons, API, containers)
+# 3. Capturer toutes les execve root sans loginuid (daemons, API, containers)
 -a always,exit -F arch=b64 -S execve -F euid=0 -F auid=4294967295 -k daemon_root_exec
 -e 2
 AUDITEOF
