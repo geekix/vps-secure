@@ -41,7 +41,35 @@
     body.dark .ic-violet { background: linear-gradient(135deg,rgba(167,139,250,0.2),rgba(167,139,250,0.1)); border:1px solid rgba(167,139,250,0.2); }
     body.dark .ic-red    { background: linear-gradient(135deg,rgba(255,77,77,0.2),rgba(255,77,77,0.1)); border:1px solid rgba(255,77,77,0.2); }
     body.dark .header-nav { border-top-color: rgba(255,255,255,0.06); }
-
+    
+    .cmd-chip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 7px;
+      border: 1px solid var(--card-border);
+      background: transparent;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--text);
+      cursor: pointer;
+      margin-bottom: 5px;
+      transition: background 0.12s;
+      user-select: none;
+    }
+    .cmd-chip:hover { background: rgba(0,0,0,0.04); }
+    body.dark .cmd-chip:hover { background: rgba(255,255,255,0.05); }
+    .cmd-chip-hint {
+      font-family: inherit;
+      font-size: 10px;
+      color: var(--muted);
+      font-weight: 600;
+      flex-shrink: 0;
+      letter-spacing: 0;
+      font-style: normal;
+    }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); transition: background 0.3s, color 0.3s; min-height: 100vh; }
     .main { max-width: 1400px; margin: 0 auto; padding: 20px; display: flex; flex-direction: column; gap: 24px; }
@@ -299,6 +327,7 @@
 
         <div class="header-right">
           <button class="btn-icon btn-icon-muted" id="btn-refresh" onclick="refresh()" title="Actualiser"><i id="refresh-icon" class="ph ph-arrows-clockwise"></i></button>
+          <button class="btn-theme" onclick="openHelper()" title="Commandes utiles"><i class="ph ph-terminal"></i></button>
           <button class="btn-icon btn-icon-muted" onclick="logout()" title="Déconnexion"><i class="ph ph-power"></i></button>
           <button class="btn-theme" id="btn-theme" onclick="toggleTheme()" title="Thème"><i id="theme-icon" class="ph ph-moon"></i></button>
         </div>
@@ -435,8 +464,8 @@
     <div class="grid4">
       <div class="card">
         <div class="card-header">
-          <div class="card-label">UFW Firewall</div>
-          <div class="icon-chip"><i class="ph-fill ph-fire"></i></div>
+          <div><div class="card-label">UFW Firewall</div><div class="card-desc">Pare-feu · ports autorisés</div></div>
+          <div class="icon-chip    "><i class="ph-fill ph-fire"></i></div>
         </div>
         <div class="card-value" id="val-ufw"><span class="skel"></span></div>
         <div class="card-sub">blocages <b>totaux</b></div>
@@ -462,7 +491,7 @@
       </div>
       <div class="card" id="card-aide">
         <div class="card-header">
-          <div><div class="card-label">AIDE File Integrity</div><div class="card-desc">Hash SHA512 des binaires</div></div>
+          <div><div class="card-label">AIDE File Integrity</div><div class="card-desc">Fichiers système modifiés · hash SHA512</div></div>
           <div class="icon-chip ic-violet"><i class="ph-fill ph-lock-key"></i></div>
         </div>
         <div class="status-row">
@@ -484,7 +513,7 @@
     <div class="grid-last">
       <div class="card" id="card-updates">
         <div class="card-header" style="margin-bottom:6px;">
-          <div class="card-label">Mises à jour</div>
+          <div><div class="card-label">Mises à jour</div><div class="card-desc">Correctifs disponibles · sécurité</div></div>
           <div class="icon-chip"><i class="ph-fill ph-package"></i></div>
         </div>
         <div class="card-value" id="val-updates"><span class="skel"></span></div>
@@ -495,7 +524,7 @@
       </div>
       <div class="card" id="card-connections">
         <div class="card-header" style="margin-bottom:6px;">
-          <div class="card-label">Connexions TCP</div>
+          <div><div class="card-label">Connexions TCP</div><div class="card-desc">Flux actifs · sockets TCP</div></div>
           <div class="icon-chip"><i class="ph-fill ph-arrows-left-right"></i></div>
         </div>
         <div class="card-value" id="val-connections"><span class="skel"></span></div>
@@ -1277,6 +1306,31 @@ async function pollRebaseStatus() {
     const btn=$('btn-aide-rebase'); if(btn) btn.disabled=false;
   }
 }
+
+// ── Helper panel ─────────────────────────────────────────────────────────────
+function openHelper() {
+  document.getElementById('helper-overlay').style.display = 'block';
+  const p = document.getElementById('helper-panel');
+  p.style.display = 'block';
+  requestAnimationFrame(() => { requestAnimationFrame(() => { p.style.transform = 'translateX(0)'; }); });
+}
+function closeHelper() {
+  const p = document.getElementById('helper-panel');
+  p.style.transform = 'translateX(100%)';
+  setTimeout(() => {
+    p.style.display = 'none';
+    document.getElementById('helper-overlay').style.display = 'none';
+  }, 280);
+}
+function copyCmd(el, cmd) {
+  navigator.clipboard.writeText(cmd).then(() => {
+    const hint = el.querySelector('.cmd-chip-hint');
+    const orig = hint.textContent;
+    hint.textContent = '✅ Copié';
+    hint.style.color = '#22c55e';
+    setTimeout(() => { hint.textContent = orig; hint.style.color = ''; }, 1500);
+ }).catch(() => {});
+}
 </script>
 <!-- Modal AIDE Rebase -->
 <div id="aide-modal-overlay" onclick="closeAideModal()" style="display:none;position:fixed;inset:0;z-index:900;background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);"></div>
@@ -1295,6 +1349,92 @@ async function pollRebaseStatus() {
   <div style="display:flex;gap:10px;justify-content:flex-end;">
     <button onclick="closeAideModal()" style="padding:9px 20px;border-radius:7px;border:1px solid var(--card-border,#e5e7eb);background:transparent;color:var(--text);font-size:12px;font-weight:600;cursor:pointer;transition:opacity .15s;" onmouseover="this.style.opacity='.7'" onmouseout="this.style.opacity='1'">Annuler</button>
     <button onclick="confirmAideRebase()" style="padding:9px 20px;border-radius:7px;border:none;background:#7c3aed;color:#fff;font-size:12px;font-weight:700;cursor:pointer;transition:opacity .15s;" onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">🔄 Confirmer</button>
+  </div>
+</div>
+<!-- Helper panel — Commandes utiles -->
+<div id="helper-overlay" onclick="closeHelper()" style="display:none;position:fixed;inset:0;z-index:800;background:rgba(0,0,0,0.35);backdrop-filter:blur(2px);"></div>
+<div id="helper-panel" style="display:none;position:fixed;top:0;right:0;height:100%;width:440px;max-width:96vw;z-index:801;background:var(--card);box-shadow:-6px 0 32px rgba(0,0,0,0.25);overflow-y:auto;transform:translateX(100%);transition:transform 0.28s cubic-bezier(.4,0,.2,1);">
+
+  <!-- Header panel -->
+  <div style="position:sticky;top:0;background:var(--card);z-index:1;padding:18px 24px 14px;border-bottom:1px solid var(--card-border);display:flex;align-items:center;justify-content:space-between;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <i class="ph ph-terminal" style="font-size:18px;color:var(--muted);"></i>
+      <span style="font-size:14px;font-weight:800;color:var(--text);">Commandes utiles</span>
+    </div>
+    <button onclick="closeHelper()" style="padding:6px 10px;border-radius:6px;border:1px solid var(--card-border);background:transparent;color:var(--muted);font-size:13px;cursor:pointer;">✕</button>
+  </div>
+
+  <div style="padding:16px 20px;display:flex;flex-direction:column;gap:18px;">
+
+    <!-- SSH -->
+    <div>
+      <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px;">🔐 SSH</div>
+      <div class="cmd-chip" onclick="copyCmd(this,'ssh vpsadmin@[IP] -p 2222')">ssh vpsadmin@[IP] -p 2222<span class="cmd-chip-hint">Connexion</span></div>
+      <div class="cmd-chip" onclick="copyCmd(this,'ssh-copy-id -p 2222 vpsadmin@[IP]')">ssh-copy-id -p 2222 vpsadmin@[IP]<span class="cmd-chip-hint">Ajouter clé</span></div>
+    </div>
+
+    <!-- CrowdSec -->
+    <div>
+      <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px;">🛡️ CrowdSec</div>
+      <div class="cmd-chip" onclick="copyCmd(this,'sudo cscli decisions list')">sudo cscli decisions list<span class="cmd-chip-hint">IP bannies</span></div>
+      <div class="cmd-chip" onclick="copyCmd(this,'sudo cscli alerts list')">sudo cscli alerts list<span class="cmd-chip-hint">Alertes récentes</span></div>
+      <div class="cmd-chip" onclick="copyCmd(this,'sudo cscli hub update && sudo cscli hub upgrade')">sudo cscli hub update && upgrade<span class="cmd-chip-hint">Mise à jour</span></div>
+      <div class="cmd-chip" onclick="copyCmd(this,'sudo cscli metrics')">sudo cscli metrics<span class="cmd-chip-hint">Métriques</span></div>
+    </div>
+
+    <!-- AIDE -->
+    <div>
+      <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px;">🔐 AIDE</div>
+      <div class="cmd-chip" onclick="copyCmd(this,'sudo vps-secure-aide-rebase')">sudo vps-secure-aide-rebase<span class="cmd-chip-hint">Mettre à jour baseline</span></div>
+      <div class="cmd-chip" onclick="copyCmd(this,'sudo aide --check')">sudo aide --check<span class="cmd-chip-hint">Scanner changements</span></div>
+      <div class="cmd-chip" onclick="copyCmd(this,'sudo aide --config-check')">sudo aide --config-check<span class="cmd-chip-hint">Vérifier config</span></div>
+    </div>
+
+    <!-- rkhunter -->
+    <div>
+      <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px;">🔍 rkhunter</div>
+      <div class="cmd-chip" onclick="copyCmd(this,'sudo rkhunter --check --skip-keypress')">sudo rkhunter --check --skip-keypress<span class="cmd-chip-hint">Scan rootkits</span></div>
+      <div class="cmd-chip" onclick="copyCmd(this,'sudo rkhunter --update')">sudo rkhunter --update<span class="cmd-chip-hint">Màj signatures</span></div>
+      <div class="cmd-chip" onclick="copyCmd(this,'sudo rkhunter --propupd')">sudo rkhunter --propupd<span class="cmd-chip-hint">Màj propriétés fichiers</span></div>
+    </div>
+
+    <!-- UFW -->
+    <div>
+      <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px;">🔥 UFW</div>
+      <div class="cmd-chip" onclick="copyCmd(this,'sudo ufw status verbose')">sudo ufw status verbose<span class="cmd-chip-hint">État firewall</span></div>
+      <div class="cmd-chip" onclick="copyCmd(this,'sudo ufw allow 8080/tcp')">sudo ufw allow 8080/tcp<span class="cmd-chip-hint">Ouvrir un port</span></div>
+      <div class="cmd-chip" onclick="copyCmd(this,'sudo ufw deny 8080')">sudo ufw deny 8080<span class="cmd-chip-hint">Bloquer un port</span></div>
+      <div class="cmd-chip" onclick="copyCmd(this,'sudo ufw reload')">sudo ufw reload<span class="cmd-chip-hint">Recharger</span></div>
+    </div>
+
+    <!-- Docker -->
+    <div>
+      <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px;">🐳 Docker</div>
+      <div class="cmd-chip" onclick="copyCmd(this,'docker ps')">docker ps<span class="cmd-chip-hint">Containers actifs</span></div>
+      <div class="cmd-chip" onclick="copyCmd(this,'docker logs endlessh --tail 50')">docker logs endlessh --tail 50<span class="cmd-chip-hint">Logs Endlessh</span></div>
+      <div class="cmd-chip" onclick="copyCmd(this,'docker logs crowdsec --tail 50')">docker logs crowdsec --tail 50<span class="cmd-chip-hint">Logs CrowdSec</span></div>
+      <div class="cmd-chip" onclick="copyCmd(this,'docker stats --no-stream')">docker stats --no-stream<span class="cmd-chip-hint">Ressources</span></div>
+    </div>
+
+    <!-- Logs & Audit -->
+    <div>
+      <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px;">📋 Logs & Audit</div>
+      <div class="cmd-chip" onclick="copyCmd(this,'sudo journalctl -f')">sudo journalctl -f<span class="cmd-chip-hint">Logs temps réel</span></div>
+      <div class="cmd-chip" onclick="copyCmd(this,'sudo ausearch -i -m USER_AUTH -ts today')">sudo ausearch -i -m USER_AUTH -ts today<span class="cmd-chip-hint">Auths aujourd'hui</span></div>
+      <div class="cmd-chip" onclick="copyCmd(this,'sudo ausearch -i -m PRIV_AUTH -ts today')">sudo ausearch -i -m PRIV_AUTH -ts today<span class="cmd-chip-hint">Escalades privilèges</span></div>
+      <div class="cmd-chip" onclick="copyCmd(this,'sudo tail -f /var/log/vps-secure/aide-daily.log')">sudo tail -f /var/log/vps-secure/aide-daily.log<span class="cmd-chip-hint">Logs AIDE</span></div>
+    </div>
+
+    <!-- Système -->
+    <div>
+      <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px;">⚙️ Système</div>
+      <div class="cmd-chip" onclick="copyCmd(this,'sudo vps-secure-stats')">sudo vps-secure-stats<span class="cmd-chip-hint">Dashboard SSH</span></div>
+      <div class="cmd-chip" onclick="copyCmd(this,'sudo vps-secure-verify')">sudo vps-secure-verify<span class="cmd-chip-hint">Vérifier installation</span></div>
+      <div class="cmd-chip" onclick="copyCmd(this,'htop')">htop<span class="cmd-chip-hint">CPU / RAM</span></div>
+      <div class="cmd-chip" onclick="copyCmd(this,'df -h')">df -h<span class="cmd-chip-hint">Espace disque</span></div>
+      <div class="cmd-chip" onclick="copyCmd(this,'free -h')">free -h<span class="cmd-chip-hint">Mémoire</span></div>
+    </div>
+
   </div>
 </div>
 </body>
