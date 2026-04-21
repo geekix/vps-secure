@@ -1750,14 +1750,15 @@ def _run_rebase_bg() -> None:
         result = subprocess.run(
             ["nsenter", "-t", "1", "-m", "--",
              "/usr/local/bin/vps-secure-aide-rebase"],
-            capture_output=True, text=True, timeout=300,
+            capture_output=True, text=True, timeout=600,
         )
         status = "ok" if result.returncode == 0 else f"error:{result.returncode}"
         if status == "ok":
             try:
                 subprocess.run(
                     ["nsenter", "-t", "1", "-m", "--",
-                     "bash", "-c", "echo 0 > /var/log/aide-daily.exit"],
+                     "bash", "-c",
+                     "chattr -i /var/log/aide-daily.exit && echo 0 > /var/log/aide-daily.exit && chattr +i /var/log/aide-daily.exit"],
                     capture_output=True, text=True, timeout=10,
                 )
             except Exception:
