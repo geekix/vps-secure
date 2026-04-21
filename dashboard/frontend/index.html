@@ -49,8 +49,8 @@
       gap: 8px;
       padding: 8px 12px;
       border-radius: 7px;
-      border: 1px solid var(--card-border);
-      background: transparent;
+      border: 1px solid rgba(0,0,0,0.09);
+      background: rgba(0,0,0,0.03);
       font-family: 'DM Mono', monospace;
       font-size: 11px;
       color: var(--text);
@@ -70,6 +70,9 @@
       letter-spacing: 0;
       font-style: normal;
     }
+    body.dark .card-desc     { color: #9ca3af; }
+    body.dark .cmd-chip      { border-color: rgba(255,255,255,0.12); background: rgba(255,255,255,0.03); }
+    body.dark .cmd-chip-hint { color: #9ca3af; }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); transition: background 0.3s, color 0.3s; min-height: 100vh; }
     .main { max-width: 1400px; margin: 0 auto; padding: 20px; display: flex; flex-direction: column; gap: 24px; }
@@ -172,9 +175,9 @@
     .a-green::before  { background: linear-gradient(90deg,#22c55e,#4ade80); }
     .a-red::before    { background: linear-gradient(90deg,#ef4444,#f87171); }
     .a-violet::before { background: linear-gradient(90deg,#7c3aed,#a78bfa); }
-    .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; gap: 10px; }
+    .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; gap: 10px; }
     .card-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); }
-    .card-desc  { font-size: 11px; color: var(--muted); font-weight: 400; margin-top: 3px; line-height: 1.4; }
+    .card-desc  { font-size: 12px; color: #6b6560; font-weight: 400; margin-top: 3px; margin-bottom: 6px; line-height: 1.4; }
 
     .icon-chip { width: 36px; height: 36px; border-radius: var(--r-xs); display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: rgba(45,125,111,0.12); border: 1px solid rgba(45,125,111,0.2); }
     .icon-chip i { font-size: 18px; color: #2d7d6f; line-height: 1; }
@@ -633,7 +636,7 @@
       Dernière mise à jour : <b id="last-update">—</b>
       &nbsp;·&nbsp; Rafraîchissement auto toutes les 30s
       &nbsp;·&nbsp; VPS-SECURE 2026
-      &nbsp;·&nbsp; version 2.7.0
+      &nbsp;·&nbsp; version 2.7.1
       &nbsp;·&nbsp; Tous droits réservés
     </div>
   </div>
@@ -779,10 +782,10 @@ function renderTimeline(events) {
   const drawItem = e => `
     <div class="tl-item">
       <div class="tl-dot tl-dot-${cm[e.color] || 'gray'}"></div>
-      <div class="tl-icon">${e.icon || '•'}</div>
+      <div class="tl-icon">${esc(e.icon) || '•'}</div>
       <div class="tl-content">
-        <div class="tl-title">${e.title || '—'}</div>
-        <div class="tl-detail">${e.detail || ''}${(e.count || 0) > 1 ? `<span style="margin-left:6px;padding:1px 7px;border-radius:10px;background:rgba(0,255,136,0.2);color:#008547;font-size:10px;font-weight:700">${e.count}×</span>` : ''}</div>
+        <div class="tl-title">${esc(e.title) || '—'}</div>
+        <div class="tl-detail">${esc(e.detail) || ''}${(e.count || 0) > 1 ? `<span style="margin-left:6px;padding:1px 7px;border-radius:10px;background:rgba(0,255,136,0.2);color:#008547;font-size:10px;font-weight:700">${e.count}×</span>` : ''}</div>
       </div>
       <div class="tl-time">${e.time || '—'}</div>
     </div>`;
@@ -1072,8 +1075,8 @@ function renderContainerCard(c) {
             <span style="font-size:11px;font-weight:900;color:#2d7d6f;letter-spacing:-0.5px;">${meta.initials}</span>
           </div>
           <div style="min-width:0;">
-            <div style="font-size:14px;font-weight:800;letter-spacing:-0.3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${meta.label}</div>
-            <div style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.image_clean}</div>
+            <div style="font-size:14px;font-weight:800;letter-spacing:-0.3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(meta.label)}</div>
+            <div style="font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(c.image_clean)}</div>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
@@ -1254,32 +1257,6 @@ async function confirmAideRebase() {
 }
 
 let _rebPollTimer = null;
-
-async function pollRebaseStatus() {
-  _rebPollTimer = null;
-  try {
-    const res = await fetch('/api/aide/rebase/status', {cache:'no-store', headers:{'Authorization': AUTH}});
-    const d   = await res.json();
-    const fb  = $('aide-rebase-feedback');
-    const btn = $('btn-aide-rebase');
-    if (d.status === 'running') {
-      fb.textContent = '⏳ Rebase en cours… (5-10 min)';
-      _rebPollTimer  = setTimeout(pollRebaseStatus, 10000);
-    } else if (d.status === 'ok') {
-      fb.textContent = '✅ Baseline mise à jour';
-      setTimeout(() => { fb.style.display='none'; if(btn) btn.disabled=false; refresh(); }, 3000);
-    } else if (d.status === 'idle') {
-      fb.textContent = '⚠️ Statut inconnu — vérifie le serveur';
-      if (btn) btn.disabled = false;
-    } else {
-      fb.textContent = `❌ ${d.status} — vérifier SSH`;
-      if (btn) btn.disabled = false;
-    }
-  } catch(e) {
-    const fb=$('aide-rebase-feedback'); if(fb) fb.textContent='❌ Erreur réseau';
-    const btn=$('btn-aide-rebase'); if(btn) btn.disabled=false;
-  }
-}
 
 async function pollRebaseStatus() {
   _rebPollTimer = null;
