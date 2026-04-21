@@ -472,8 +472,8 @@
         <div class="card-sub" style="margin-top:12px" id="sub-aide">Dernier scan : —</div>
         <div id="aide-rebase-wrap" style="display:none;margin-top:14px;">
           <button id="btn-aide-rebase" onclick="requestAideRebase()"
-            style="width:100%;padding:8px 12px;border-radius:6px;border:none;background:#7c3aed;color:#fff;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:0.5px;text-transform:uppercase;">
-            🔄 Mettre à jour la baseline
+            style="width:100%;padding:10px 16px;border-radius:8px;border:1.5px solid #f59e0b;background:rgba(245,158,11,0.08);color:#f59e0b;font-size:12px;font-weight:700;cursor:pointer;">
+            ⚠️ Mettre à jour la baseline
           </button>
           <div id="aide-rebase-feedback" style="display:none;font-size:11px;color:var(--muted);margin-top:8px;text-align:center;"></div>
         </div>
@@ -1198,7 +1198,7 @@ async function confirmAideRebase() {
   const btn = $('btn-aide-rebase');
   const fb  = $('aide-rebase-feedback');
   btn.disabled = true;
-  fb.textContent = '⏳ Rebase en cours… (2-3 min)';
+  fb.textContent = '⏳ Rebase en cours… (5-10 min)';
   fb.style.display = 'block';
   try {
     const res = await fetch('/api/aide/rebase', {
@@ -1233,7 +1233,7 @@ async function pollRebaseStatus() {
     const fb  = $('aide-rebase-feedback');
     const btn = $('btn-aide-rebase');
     if (d.status === 'running') {
-      fb.textContent = '⏳ Rebase en cours… (2-3 min)';
+      fb.textContent = '⏳ Rebase en cours… (5-10 min)';
       _rebPollTimer  = setTimeout(pollRebaseStatus, 10000);
     } else if (d.status === 'ok') {
       fb.textContent = '✅ Baseline mise à jour';
@@ -1259,7 +1259,7 @@ async function pollRebaseStatus() {
     const fb  = $('aide-rebase-feedback');
     const btn = $('btn-aide-rebase');
     if (d.status === 'running') {
-      fb.textContent = '⏳ Rebase en cours… (2-3 min)';
+      fb.textContent = '⏳ Rebase en cours… (5-10 min)';
       _rebPollTimer  = setTimeout(pollRebaseStatus, 10000);
     } else if (d.status === 'ok') {
       fb.textContent = '✅ Baseline mise à jour';
