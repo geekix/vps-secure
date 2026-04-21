@@ -8,6 +8,7 @@ services:
   metrics-api:
     build: ./api
     container_name: vps-monitor-api
+    pid: "host"
     network_mode: host
     volumes:
       - /var/lib/apt/periodic:/var/lib/apt/periodic:ro
