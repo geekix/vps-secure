@@ -648,6 +648,7 @@
 'use strict';
 const $ = id => document.getElementById(id);
 const fmt = n => (n == null ? '—' : Number(n).toLocaleString('fr-FR'));
+const esc = s => String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
 
 /* ── Tabs ─────────────────────────────────────────────────────────────────── */
 function setTab(tab) {
@@ -909,9 +910,6 @@ function logout() { sessionStorage.removeItem('vps_auth'); window.location.href 
 let refreshTimer = null, countdown = 30, cdTimer = null;
 initDonuts();
 applyTheme(sessionStorage.getItem('vps_theme_dark') === '1');
-setTab(sessionStorage.getItem('active_tab') || 'cockpit');
-refresh();
-loadTelegramStatus();
 
 let _globeInstance = null;
 let _globeLibsLoaded = false;
@@ -1117,6 +1115,7 @@ window.fetchContainers = async function() {
     // Appel background — peut prendre plusieurs secondes (appels Docker Hub)
     fetchContainerUpdates();
   } catch(e) {
+    console.error('fetchContainers ERROR:', e);
     grid.innerHTML = `<div class="card" style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted);">
       Erreur chargement containers — vérifier que docker.sock est monté
     </div>`;
@@ -1308,6 +1307,9 @@ function copyCmd(el, cmd) {
     setTimeout(() => { hint.textContent = orig; hint.style.color = ''; }, 1500);
  }).catch(() => {});
 }
+setTab(sessionStorage.getItem('active_tab') || 'cockpit');
+refresh();
+loadTelegramStatus();
 </script>
 <!-- Modal AIDE Rebase -->
 <div id="aide-modal-overlay" onclick="closeAideModal()" style="display:none;position:fixed;inset:0;z-index:900;background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);"></div>
