@@ -2303,35 +2303,55 @@ log_info "  Après mise à jour OS : sudo vps-secure-aide-rebase"
 
 # Script vps-secure-aide-rebase — rebase baseline AIDE post-apt (fix #44)
 cat > /usr/local/bin/vps-secure-aide-rebase << 'REBASEEOF'
-#!/bin/bash
+#!/usr/bin/env bash
 # vps-secure-aide-rebase — Rebase la baseline AIDE après un apt upgrade
 # Usage : sudo vps-secure-aide-rebase
+# v2.4.2 : lockfile flock + trap EXIT pour intégrité aide.db (issue #86)
+
 [[ "$EUID" -ne 0 ]] && { echo "❌ Utiliser : sudo vps-secure-aide-rebase"; exit 1; }
+
+readonly AIDE_DB="/var/lib/aide/aide.db"
+readonly AIDE_DB_NEW="/var/lib/aide/aide.db.new"
+readonly AIDE_CONF="/etc/aide/aide.conf"
+readonly LOCK_FILE="/var/run/vps-aide-rebase.lock"
+
+# Trap : restaurer chattr +i si interruption (SIGTERM, OOM killer, Ctrl+C)
+_db_unprotected=0
+
+cleanup() {
+    if [[ "$_db_unprotected" -eq 1 ]] && [[ -f "$AIDE_DB" ]]; then
+        chmod 600 "$AIDE_DB" 2>/dev/null || true
+        chattr +i "$AIDE_DB" 2>/dev/null || true
+        echo "⚠️  Rebase interrompu — baseline AIDE reprotégée (chattr +i)." >&2
+    fi
+}
+trap cleanup EXIT INT TERM
+
+# Lockfile : empêche exécution concurrente (cron aide-daily 01h00 UTC)
+exec 200>"$LOCK_FILE"
+if ! flock -n 200; then
+    echo "❌ AIDE déjà en cours d'exécution (cron ou rebase actif)."
+    echo "   Réessaie dans quelques minutes."
+    exit 1
+fi
+
 echo "🔄 Rebase baseline AIDE en cours (~2-3 min)..."
-chattr -i /var/lib/aide/aide.db 2>/dev/null || true
-aide --update --config /etc/aide/aide.conf > /dev/null 2>&1 || true
-if [[ -f /var/lib/aide/aide.db.new ]]; then
-    cp /var/lib/aide/aide.db.new /var/lib/aide/aide.db
-    # FIX #65 — Remettre à zéro les exit files (évite alertes résiduelles 22h)
-    chattr -i /var/log/aide-daily.exit 2>/dev/null || true
-    echo "0" > /var/log/aide-daily.exit
-    chattr +i /var/log/aide-daily.exit 2>/dev/null || true
-    rm -f /var/log/aide-daily.exit.context
-    chmod 600 /var/lib/aide/aide.db
-    chattr +i /var/lib/aide/aide.db
-    rm -f /var/lib/aide/aide.db.new
 
-    # ── Mise à jour statut dashboard ──────────────────────────────────────
-    chattr -i /var/log/aide-daily.log /var/log/aide-daily.exit 2>/dev/null || true
-    echo "Rebase effectué le \$(date '+%Y-%m-%d %H:%M:%S') — baseline réinitialisée" \
-        > /var/log/aide-daily.log
-    echo "0" > /var/log/aide-daily.exit
-    chattr +i /var/log/aide-daily.log /var/log/aide-daily.exit 2>/dev/null || true
-    # ─────────────────────────────────────────────────────────────────────
+chattr -i "$AIDE_DB" 2>/dev/null || true
+_db_unprotected=1
 
+aide --update --config "$AIDE_CONF" > /dev/null 2>&1 || true
+
+if [[ -f "$AIDE_DB_NEW" ]]; then
+    cp "$AIDE_DB_NEW" "$AIDE_DB"
+    chmod 600 "$AIDE_DB"
+    chattr +i "$AIDE_DB"
+    _db_unprotected=0
+    rm -f "$AIDE_DB_NEW"
     echo "✅ Baseline AIDE mise à jour. Dashboard actualisé immédiatement."
 else
-    echo "❌ Échec — vérifier : sudo aide --config-check"; exit 1
+    echo "❌ Échec — vérifier : sudo aide --config-check"
+    exit 1
 fi
 REBASEEOF
 chmod 750 /usr/local/bin/vps-secure-aide-rebase
