@@ -1703,8 +1703,20 @@ def api_geomap() -> dict:
     return data
     
 # ── AIDE Rebase (issue #85) ───────────────────────────────────────────────────
-_REBASE_STATUS_FILE = Path("/var/log/vps-aide-rebase.status")
 _rebase_lock        = threading.Lock()
+_rebase_status      = "idle"
+_rebase_status_lock = threading.Lock()
+
+
+def _get_rebase_status() -> dict:
+    with _rebase_status_lock:
+        return {"status": _rebase_status}
+
+
+def _set_rebase_status(s: str) -> None:
+    global _rebase_status
+    with _rebase_status_lock:
+        _rebase_status = s
 
 
 def _send_telegram_api(message: str) -> bool:
@@ -1731,30 +1743,31 @@ def _send_telegram_api(message: str) -> bool:
         return False
 
 
-def _get_rebase_status() -> dict:
-    try:
-        status = _REBASE_STATUS_FILE.read_text().strip()
-    except FileNotFoundError:
-        status = "idle"
-    return {"status": status}
-
-
 def _run_rebase_bg() -> None:
-    """Thread background : exécute vps-secure-aide-rebase, écrit le statut."""
-    _REBASE_STATUS_FILE.write_text("running")
+    status = "error:init"
     try:
+        _set_rebase_status("running")
         result = subprocess.run(
-            ["/usr/local/bin/vps-secure-aide-rebase"],
+            ["nsenter", "-t", "1", "-m", "--",
+             "/usr/local/bin/vps-secure-aide-rebase"],
             capture_output=True, text=True, timeout=300,
-            env={"PATH": "/usr/local/sbin:/usr/sbin:/sbin:/usr/local/bin:/usr/bin:/bin"},
         )
         status = "ok" if result.returncode == 0 else f"error:{result.returncode}"
+        if status == "ok":
+            try:
+                subprocess.run(
+                    ["nsenter", "-t", "1", "-m", "--",
+                     "bash", "-c", "echo 0 > /var/log/aide-daily.exit"],
+                    capture_output=True, text=True, timeout=10,
+                )
+            except Exception:
+                pass
     except subprocess.TimeoutExpired:
         status = "timeout"
     except Exception as exc:
         status = f"error:{type(exc).__name__}"
     finally:
-        _REBASE_STATUS_FILE.write_text(status)
+        _set_rebase_status(status)
         try:
             _rebase_lock.release()
         except RuntimeError:
