@@ -1701,6 +1701,64 @@ def api_geomap() -> dict:
     data = {'server': _server_coords, 'attackers': list(attackers)}
     _geomap_cache = {'ts': time.time(), 'data': data}
     return data
+    
+# ── AIDE Rebase (issue #85) ───────────────────────────────────────────────────
+_REBASE_STATUS_FILE = Path("/var/log/vps-aide-rebase.status")
+_rebase_lock        = threading.Lock()
+
+
+def _send_telegram_api(message: str) -> bool:
+    """Envoie une notification Telegram via /etc/vps-secure/telegram.conf."""
+    conf_path = f"{HOSTFS}etc/vps-secure/telegram.conf"
+    try:
+        conf      = Path(conf_path).read_text()
+        m_token   = re.search(r'TELEGRAM_TOKEN="([^"]+)"',   conf)
+        m_chat_id = re.search(r'TELEGRAM_CHAT_ID="([^"]+)"', conf)
+        if not m_token or not m_chat_id:
+            return False
+        payload = json.dumps({
+            "chat_id": m_chat_id.group(1),
+            "text":    message,
+        }).encode()
+        req = urllib.request.Request(
+            f"https://api.telegram.org/bot{m_token.group(1)}/sendMessage",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=10):
+            return True
+    except Exception:
+        return False
+
+
+def _get_rebase_status() -> dict:
+    try:
+        status = _REBASE_STATUS_FILE.read_text().strip()
+    except FileNotFoundError:
+        status = "idle"
+    return {"status": status}
+
+
+def _run_rebase_bg() -> None:
+    """Thread background : exécute vps-secure-aide-rebase, écrit le statut."""
+    _REBASE_STATUS_FILE.write_text("running")
+    try:
+        result = subprocess.run(
+            ["/usr/local/bin/vps-secure-aide-rebase"],
+            capture_output=True, text=True, timeout=300,
+            env={"PATH": "/usr/local/sbin:/usr/sbin:/sbin:/usr/local/bin:/usr/bin:/bin"},
+        )
+        status = "ok" if result.returncode == 0 else f"error:{result.returncode}"
+    except subprocess.TimeoutExpired:
+        status = "timeout"
+    except Exception as exc:
+        status = f"error:{type(exc).__name__}"
+    finally:
+        _REBASE_STATUS_FILE.write_text(status)
+        try:
+            _rebase_lock.release()
+        except RuntimeError:
+            pass
 
 # ── HTTP Handler ──────────────────────────────────────────────────────────────
 ROUTES = {
@@ -1709,6 +1767,7 @@ ROUTES = {
     "/api/history":             lambda: _history,
     "/api/timeline":            lambda: get_timeline(),
     "/api/telegram/status":     lambda: get_telegram_status(),
+    "/api/aide/rebase/status": lambda: _get_rebase_status(),
     "/api/containers":          lambda: get_containers(),
     "/api/containers/updates":  lambda: get_container_updates(),
     "/api/geomap":              api_geomap,
@@ -1805,6 +1864,43 @@ class Handler(BaseHTTPRequestHandler):
                 self.wfile.write(resp)
             except Exception as exc:
                 self.send_error(500, str(exc))
+        elif path == "/api/aide/rebase":
+            # Auth
+            if DASHBOARD_PASS and not _check_basic_auth(self):
+                _record_auth_failure(_client_ip(self))
+                self.send_response(401)
+                self.send_header("WWW-Authenticate", 'Basic realm="VPS-SECURE Dashboard"')
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                self.wfile.write(b'{"error":"unauthorized"}')
+                return
+            # Lock non-bloquant — 409 si rebase déjà actif
+            if not _rebase_lock.acquire(blocking=False):
+                resp = json.dumps({"status": "already_running"}).encode()
+                self.send_response(409)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Content-Length", str(len(resp)))
+                self.end_headers()
+                self.wfile.write(resp)
+                return
+            # Telegram AVANT le lancement (BLOCKER #2)
+            ip = _client_ip(self)
+            _send_telegram_api(
+                f"⚠️ AIDE rebase déclenché depuis le dashboard\n"
+                f"🌐 IP source : {ip}\n"
+                f"📅 {time.strftime('%d/%m/%Y %H:%M:%S')}\n"
+                f"ℹ️  La baseline AIDE va être mise à jour."
+            )
+            # Thread background (BLOCKER #1 — app.py single-threaded)
+            threading.Thread(target=_run_rebase_bg, daemon=True).start()
+            resp = json.dumps({"status": "started"}).encode()
+            self.send_response(202)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(resp)))
+            self.end_headers()
+            self.wfile.write(resp)
+
         else:
             self.send_error(404)
 
