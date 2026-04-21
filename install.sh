@@ -1198,6 +1198,25 @@ cat > /etc/audit/rules.d/vps-secure.rules << 'AUDITEOF'
 # FIX E-AUDIT — io_uring bypass auditd (CVE-2025-71239) + userfaultfd (CVE-2026-23241)
 -a always,exit -F arch=b64 -S io_uring_setup -S io_uring_enter -k io_uring
 -a always,exit -F arch=b64 -S userfaultfd -F auid>=1000 -F auid!=4294967295 -k userfaultfd
+
+# ── Blind spot daemon/API : exécutions root sans loginuid (auid=4294967295) ──
+# Tout subprocess Python, cron, daemon qui exécute une commande root
+# n'a jamais eu de session login → auid=-1 → exclus de privilege_escalation.
+# Ces règles comblent ce trou forensique.
+
+# 1. Exécution vps-secure-aide-rebase (SSH, API dashboard, cron — toutes sources)
+-a always,exit -F arch=b64 -S execve -F path=/usr/local/bin/vps-secure-aide-rebase -k aide_rebase_exec
+-a always,exit -F arch=b32 -S execve -F path=/usr/local/bin/vps-secure-aide-rebase -k aide_rebase_exec
+
+# 2. Exécution directe aide (--update, --init = modification baseline)
+-a always,exit -F arch=b64 -S execve -F path=/usr/sbin/aide -k aide_exec
+
+# 3. Écriture sur la baseline AIDE (vecteur de compromission silencieuse)
+-w /var/lib/aide/aide.db -p wa -k aide_db_write
+-w /var/lib/aide/aide.db.new -p wa -k aide_db_write
+
+# 4. Capturer toutes les execve root sans loginuid (daemons, API, containers)
+-a always,exit -F arch=b64 -S execve -F euid=0 -F auid=4294967295 -k daemon_root_exec
 -e 2
 AUDITEOF
 
