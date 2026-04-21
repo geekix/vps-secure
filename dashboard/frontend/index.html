@@ -795,7 +795,7 @@ function updateCards(d) {
   const aiSt = ai.status || 'unknown';
   $('val-aide').innerHTML = aiSt === 'clean' ? '✅ <b>Propre</b>' : aiSt === 'rebase' ? '🔄 Rebase requis' : aiSt === 'changes' ? '🚨 Modifications !' : '❓ Inconnu';
   setPill('pill-aide', aiSt === 'clean' ? 'clean' : aiSt === 'rebase' ? 'warning' : aiSt === 'changes' ? 'danger' : 'unk');
-  $('sub-aide').textContent = aiSt === 'rebase' ? 'sudo vps-secure-aide-rebase' : aiSt === 'changes' ? 'sudo aide --check | head -30' : `Dernier scan : ${ai.last_scan || '—'}`;
+  $('sub-aide').textContent = `Dernier scan : ${ai.last_scan || '—'}`;
   setCard('card-aide',aiSt==='changes'?'a-red':aiSt==='clean'?'a-green':'');
   const _aidWrap=$('aide-rebase-wrap');
   if(_aidWrap) _aidWrap.style.display=aiSt==='changes'?'block':'none';
@@ -1182,10 +1182,19 @@ async function fetchContainerUpdates() {
 })();
 
 // ── AIDE Rebase (issue #85) ──────────────────────────────────────────────────
-let _rebPollTimer = null;
 
-async function requestAideRebase() {
-  if (!confirm('Mettre à jour la baseline AIDE ?\n\nCette action va absorber les modifications détectées comme nouvelle référence de sécurité.\n\nContinuer ?')) return;
+function requestAideRebase() {
+  document.getElementById('aide-modal-overlay').style.display = 'block';
+  document.getElementById('aide-modal').style.display = 'block';
+}
+
+function closeAideModal() {
+  document.getElementById('aide-modal-overlay').style.display = 'none';
+  document.getElementById('aide-modal').style.display = 'none';
+}
+
+async function confirmAideRebase() {
+  closeAideModal();
   const btn = $('btn-aide-rebase');
   const fb  = $('aide-rebase-feedback');
   btn.disabled = true;
@@ -1211,6 +1220,34 @@ async function requestAideRebase() {
   } catch(e) {
     fb.textContent = '❌ Erreur réseau';
     btn.disabled = false;
+  }
+}
+
+let _rebPollTimer = null;
+
+async function pollRebaseStatus() {
+  _rebPollTimer = null;
+  try {
+    const res = await fetch('/api/aide/rebase/status', {cache:'no-store', headers:{'Authorization': AUTH}});
+    const d   = await res.json();
+    const fb  = $('aide-rebase-feedback');
+    const btn = $('btn-aide-rebase');
+    if (d.status === 'running') {
+      fb.textContent = '⏳ Rebase en cours… (2-3 min)';
+      _rebPollTimer  = setTimeout(pollRebaseStatus, 10000);
+    } else if (d.status === 'ok') {
+      fb.textContent = '✅ Baseline mise à jour';
+      setTimeout(() => { fb.style.display='none'; if(btn) btn.disabled=false; refresh(); }, 3000);
+    } else if (d.status === 'idle') {
+      fb.textContent = '⚠️ Statut inconnu — vérifie le serveur';
+      if (btn) btn.disabled = false;
+    } else {
+      fb.textContent = `❌ ${d.status} — vérifier SSH`;
+      if (btn) btn.disabled = false;
+    }
+  } catch(e) {
+    const fb=$('aide-rebase-feedback'); if(fb) fb.textContent='❌ Erreur réseau';
+    const btn=$('btn-aide-rebase'); if(btn) btn.disabled=false;
   }
 }
 
@@ -1240,5 +1277,24 @@ async function pollRebaseStatus() {
   }
 }
 </script>
+<!-- Modal AIDE Rebase -->
+<div id="aide-modal-overlay" onclick="closeAideModal()" style="display:none;position:fixed;inset:0;z-index:900;background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);"></div>
+<div id="aide-modal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:901;background:var(--card);border-radius:14px;padding:28px 30px;max-width:420px;width:calc(100% - 40px);box-shadow:0 24px 64px rgba(0,0,0,0.4);">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
+    <div style="width:42px;height:42px;border-radius:10px;background:rgba(124,58,237,0.15);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">🔄</div>
+    <div>
+      <div style="font-size:14px;font-weight:800;color:var(--text);">Mettre à jour la baseline AIDE</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px;">Action irréversible — fichiers absorbés dans la référence</div>
+    </div>
+  </div>
+  <p style="font-size:12px;color:var(--muted);line-height:1.65;margin-bottom:22px;">
+    Les modifications détectées vont devenir la <b style="color:var(--text);">nouvelle baseline de sécurité</b>.<br><br>
+    Une notification Telegram sera envoyée <b style="color:var(--text);">avant</b> le lancement (~2-3 min).
+  </p>
+  <div style="display:flex;gap:10px;justify-content:flex-end;">
+    <button onclick="closeAideModal()" style="padding:9px 20px;border-radius:7px;border:1px solid var(--card-border,#e5e7eb);background:transparent;color:var(--text);font-size:12px;font-weight:600;cursor:pointer;transition:opacity .15s;" onmouseover="this.style.opacity='.7'" onmouseout="this.style.opacity='1'">Annuler</button>
+    <button onclick="confirmAideRebase()" style="padding:9px 20px;border-radius:7px;border:none;background:#7c3aed;color:#fff;font-size:12px;font-weight:700;cursor:pointer;transition:opacity .15s;" onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">🔄 Confirmer</button>
+  </div>
+</div>
 </body>
 </html>
