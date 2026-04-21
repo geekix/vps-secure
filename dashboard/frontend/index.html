@@ -462,14 +462,21 @@
       </div>
       <div class="card" id="card-aide">
         <div class="card-header">
-          <div><div class="card-label">AIDE File Integrity</div><div class="card-desc">Surveillance des fichiers système</div></div>
-          <div class="icon-chip"><i class="ph-fill ph-lock-key"></i></div>
+          <div><div class="card-label">AIDE File Integrity</div><div class="card-desc">Hash SHA512 des binaires</div></div>
+          <div class="icon-chip ic-violet"><i class="ph-fill ph-lock-key"></i></div>
         </div>
         <div class="status-row">
           <span class="status-label" id="val-aide">—</span>
           <span class="pill pill-unk" id="pill-aide">—</span>
         </div>
-        <div class="card-sub" style="margin-top:12px;" id="sub-aide">Dernier scan : —</div>
+        <div class="card-sub" style="margin-top:12px" id="sub-aide">Dernier scan : —</div>
+        <div id="aide-rebase-wrap" style="display:none;margin-top:14px;">
+          <button id="btn-aide-rebase" onclick="requestAideRebase()"
+            style="width:100%;padding:8px 12px;border-radius:6px;border:none;background:#7c3aed;color:#fff;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:0.5px;text-transform:uppercase;">
+            🔄 Mettre à jour la baseline
+          </button>
+          <div id="aide-rebase-feedback" style="display:none;font-size:11px;color:var(--muted);margin-top:8px;text-align:center;"></div>
+        </div>
       </div>
     </div>
 
@@ -789,7 +796,9 @@ function updateCards(d) {
   $('val-aide').innerHTML = aiSt === 'clean' ? '✅ <b>Propre</b>' : aiSt === 'rebase' ? '🔄 Rebase requis' : aiSt === 'changes' ? '🚨 Modifications !' : '❓ Inconnu';
   setPill('pill-aide', aiSt === 'clean' ? 'clean' : aiSt === 'rebase' ? 'warning' : aiSt === 'changes' ? 'danger' : 'unk');
   $('sub-aide').textContent = aiSt === 'rebase' ? 'sudo vps-secure-aide-rebase' : aiSt === 'changes' ? 'sudo aide --check | head -30' : `Dernier scan : ${ai.last_scan || '—'}`;
-  setCard('card-aide', aiSt === 'changes' ? 'a-red' : aiSt === 'clean' ? 'a-green' : '');
+  setCard('card-aide',aiSt==='changes'?'a-red':aiSt==='clean'?'a-green':'');
+  const _aidWrap=$('aide-rebase-wrap');
+  if(_aidWrap) _aidWrap.style.display=aiSt==='changes'?'block':'none';
   $('val-ip').textContent = s.ip || '—';
   $('sys-mem').textContent  = mem.pct  != null ? `${mem.pct}%`  : '—';
   $('sys-disk').textContent = dsk.pct  != null ? `${dsk.pct}%`  : '—';
@@ -1171,6 +1180,65 @@ async function fetchContainerUpdates() {
   fetchJournal();
   setInterval(fetchJournal, 30000);
 })();
+
+// ── AIDE Rebase (issue #85) ──────────────────────────────────────────────────
+let _rebPollTimer = null;
+
+async function requestAideRebase() {
+  if (!confirm('Mettre à jour la baseline AIDE ?\n\nCette action va absorber les modifications détectées comme nouvelle référence de sécurité.\n\nContinuer ?')) return;
+  const btn = $('btn-aide-rebase');
+  const fb  = $('aide-rebase-feedback');
+  btn.disabled = true;
+  fb.textContent = '⏳ Rebase en cours… (2-3 min)';
+  fb.style.display = 'block';
+  try {
+    const res = await fetch('/api/aide/rebase', {
+      method: 'POST',
+      headers: {'Authorization': AUTH, 'Content-Length': '0'},
+    });
+    if (res.status === 409) {
+      fb.textContent = '⏳ Rebase déjà en cours…';
+      _rebPollTimer = setTimeout(pollRebaseStatus, 5000);
+      return;
+    }
+    if (!res.ok) {
+      fb.textContent = '❌ Erreur serveur — réessaie dans quelques instants';
+      btn.disabled = false;
+      return;
+    }
+    if (_rebPollTimer) clearTimeout(_rebPollTimer);
+    _rebPollTimer = setTimeout(pollRebaseStatus, 10000);
+  } catch(e) {
+    fb.textContent = '❌ Erreur réseau';
+    btn.disabled = false;
+  }
+}
+
+async function pollRebaseStatus() {
+  _rebPollTimer = null;
+  try {
+    const res = await fetch('/api/aide/rebase/status', {cache:'no-store', headers:{'Authorization': AUTH}});
+    const d   = await res.json();
+    const fb  = $('aide-rebase-feedback');
+    const btn = $('btn-aide-rebase');
+    if (d.status === 'running') {
+      fb.textContent = '⏳ Rebase en cours… (2-3 min)';
+      _rebPollTimer  = setTimeout(pollRebaseStatus, 10000);
+    } else if (d.status === 'ok') {
+      fb.textContent = '✅ Baseline mise à jour';
+      setTimeout(() => { fb.style.display='none'; if(btn) btn.disabled=false; refresh(); }, 3000);
+    } else if (d.status === 'idle') {
+      fb.textContent = '⚠️ Statut inconnu — vérifie le serveur';
+      if (btn) btn.disabled = false;
+    } else {
+      fb.textContent = `❌ ${d.status} — vérifier SSH`;
+      if (btn) btn.disabled = false;
+    }
+  } catch(e) {
+    const fb=$('aide-rebase-feedback'); if(fb) fb.textContent='❌ Erreur réseau';
+    const btn=$('btn-aide-rebase'); if(btn) btn.disabled=false;
+  }
+}
 </script>
 </body>
 </html>
