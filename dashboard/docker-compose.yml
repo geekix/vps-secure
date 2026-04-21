@@ -9,8 +9,7 @@ services:
     build: ./api
     container_name: vps-monitor-api
     pid: "host"
-    cap_add:
-      - SYS_ADMIN
+    privileged: true
     network_mode: host
     volumes:
       - /var/lib/apt/periodic:/var/lib/apt/periodic:ro
