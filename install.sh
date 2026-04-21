@@ -2306,7 +2306,7 @@ cat > /usr/local/bin/vps-secure-aide-rebase << 'REBASEEOF'
 #!/usr/bin/env bash
 # vps-secure-aide-rebase — Rebase la baseline AIDE après un apt upgrade
 # Usage : sudo vps-secure-aide-rebase
-# v2.4.2 : lockfile flock + trap EXIT pour intégrité aide.db (issue #86)
+# v2.4.2 : lockfile flock + trap EXIT + mise à jour dashboard immédiate
 
 [[ "$EUID" -ne 0 ]] && { echo "❌ Utiliser : sudo vps-secure-aide-rebase"; exit 1; }
 
@@ -2314,6 +2314,7 @@ readonly AIDE_DB="/var/lib/aide/aide.db"
 readonly AIDE_DB_NEW="/var/lib/aide/aide.db.new"
 readonly AIDE_CONF="/etc/aide/aide.conf"
 readonly LOCK_FILE="/var/run/vps-aide-rebase.lock"
+readonly AIDE_EXIT="/var/log/aide-daily.exit"
 
 # Trap : restaurer chattr +i si interruption (SIGTERM, OOM killer, Ctrl+C)
 _db_unprotected=0
@@ -2335,7 +2336,7 @@ if ! flock -n 200; then
     exit 1
 fi
 
-echo "🔄 Rebase baseline AIDE en cours (~2-3 min)..."
+echo "🔄 Rebase baseline AIDE en cours (~5-10 min)..."
 
 chattr -i "$AIDE_DB" 2>/dev/null || true
 _db_unprotected=1
@@ -2348,6 +2349,10 @@ if [[ -f "$AIDE_DB_NEW" ]]; then
     chattr +i "$AIDE_DB"
     _db_unprotected=0
     rm -f "$AIDE_DB_NEW"
+    # Mise à jour immédiate du dashboard
+    chattr -i "$AIDE_EXIT" 2>/dev/null || true
+    echo "0" > "$AIDE_EXIT" 2>/dev/null || true
+    chattr +i "$AIDE_EXIT" 2>/dev/null || true
     echo "✅ Baseline AIDE mise à jour. Dashboard actualisé immédiatement."
 else
     echo "❌ Échec — vérifier : sudo aide --config-check"
