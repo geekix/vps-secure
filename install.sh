@@ -1922,6 +1922,15 @@ BOUNCER_KEY=$(cat "$BOUNCER_KEY_FILE" 2>/dev/null) || {
 }
 
 # ─────────────────────────────────────────────
+# Vérification compatibilité kernel
+# ─────────────────────────────────────────────
+if ! ipset create _vps_probe hash:ip 2>/dev/null; then
+    logger -t "$LOG_TAG" "ERREUR: ipset indisponible — bot-funnel requiert les modules kernel ipset (incompatible avec certains VPS KVM)"
+    exit 1
+fi
+ipset destroy _vps_probe 2>/dev/null
+
+# ─────────────────────────────────────────────
 # Gestion de la chaîne iptables NAT
 # ─────────────────────────────────────────────
 init_chain() {
