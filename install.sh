@@ -1879,7 +1879,7 @@ fi
 # ============================================================
 # Étape 14b : Bot Funnel — redirection bots SSH vers Endlessh
 # ============================================================
-etape "14b" "$TOTAL_ETAPES" "Bot Funnel — redirection bots SSH vers Endlessh"
+etape "14b" "$TOTAL_ETAPES" "Bot Funnel - redirection bots SSH vers Endlessh"
 
 BOT_FUNNEL_SCRIPT="/usr/local/bin/vps-secure-bot-funnel.sh"
 BOT_FUNNEL_SERVICE="/etc/systemd/system/vps-secure-bot-funnel.service"
@@ -1906,7 +1906,7 @@ readonly REDIRECT_CHAIN="VPS_BOT_FUNNEL"
 readonly SSH_REAL_PORT="2222"
 readonly HONEYPOT_PORT="22"
 readonly LOG_TAG="VPS-SECURE-BOT-FUNNEL"
-readonly POLL_INTERVAL=30
+readonly POLL_INTERVAL=60
 readonly WHITELIST_FILE="/etc/crowdsec/parsers/s00-raw/known-ips.conf"
 
 # ─────────────────────────────────────────────
@@ -1963,9 +1963,9 @@ add_redirect() {
     fi
     is_whitelisted "$ip" && { logger -t "$LOG_TAG" "Skip $ip (whitelist)"; return; }
     if ! iptables -t nat -C "$REDIRECT_CHAIN" \
-         -s "$ip" -j REDIRECT --to-port "$HONEYPOT_PORT" 2>/dev/null; then
+         -s "$ip" -p tcp -j REDIRECT --to-port "$HONEYPOT_PORT" 2>/dev/null; then
         iptables -t nat -A "$REDIRECT_CHAIN" \
-            -s "$ip" -j REDIRECT --to-port "$HONEYPOT_PORT"
+            -s "$ip" -p tcp -j REDIRECT --to-port "$HONEYPOT_PORT"
         logger -t "$LOG_TAG" "PIEGE: $ip -> Endlessh :$HONEYPOT_PORT"
     fi
 }
@@ -1973,9 +1973,9 @@ add_redirect() {
 remove_redirect() {
     local ip="$1"
     if iptables -t nat -C "$REDIRECT_CHAIN" \
-       -s "$ip" -j REDIRECT --to-port "$HONEYPOT_PORT" 2>/dev/null; then
+       -s "$ip" -p tcp -j REDIRECT --to-port "$HONEYPOT_PORT" 2>/dev/null; then
         iptables -t nat -D "$REDIRECT_CHAIN" \
-            -s "$ip" -j REDIRECT --to-port "$HONEYPOT_PORT"
+            -s "$ip" -p tcp -j REDIRECT --to-port "$HONEYPOT_PORT"
         logger -t "$LOG_TAG" "LIBERE: $ip (décision expirée)"
     fi
 }
@@ -1994,7 +1994,7 @@ poll_ssh_decisions() {
     local raw
     raw=$(curl -sf --max-time 10 \
         -H "X-Api-Key: ${BOUNCER_KEY}" \
-        "${LAPI_URL}/v1/decisions?type=ban&scope=Ip" 2>/dev/null) || { echo ""; return; }
+        "${LAPI_URL}/v1/decisions?type=ban&scope=Ip&since=24h" 2>/dev/null) || { echo ""; return; }
 
     echo "$raw" | python3 -c "
 import json, sys
