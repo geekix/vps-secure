@@ -258,7 +258,7 @@ def _lapi(path: str) -> list | None:
 # ── Collectors ────────────────────────────────────────────────────────────────
 def get_endlessh() -> dict:
     out24   = run(["docker", "logs", "--since", "24h", ENDLESSH_CONTAINER], timeout=20)
-    out_all = run(["docker", "logs", "--tail", "200000", ENDLESSH_CONTAINER], timeout=30)
+    out_all = run(["docker", "logs", "--tail", "50000", ENDLESSH_CONTAINER], timeout=20)
     pat     = re.compile(r"ACCEPT|\"accepted\"", re.IGNORECASE)
 
     durations = []
@@ -278,12 +278,30 @@ def get_endlessh() -> dict:
             return f"{s // 60}m{s % 60}s"
         return f"{s}s"
 
+    # Persistance du total cumulatif (survit aux redémarrages container)
+    ENDLESSH_PERSIST = "/var/lib/vps-monitor/endlessh-total.json"
+    persisted_total = 0
+    try:
+        with open(ENDLESSH_PERSIST) as f:
+            persisted_total = json.load(f).get("total", 0)
+    except Exception:
+        pass
+    total_now = len(pat.findall(out_all))
+    final_total = max(total_now, persisted_total)
+    if final_total > persisted_total:
+        try:
+            os.makedirs(os.path.dirname(ENDLESSH_PERSIST), exist_ok=True)
+            with open(ENDLESSH_PERSIST, "w") as f:
+                json.dump({"total": final_total, "updated_at": int(time.time())}, f)
+        except Exception:
+            pass
+
     return {
-        "last24h":          len(pat.findall(out24)),
-        "total":            len(pat.findall(out_all)),
-        "avg_duration_s":   avg_duration_s,
+        "last24h": len(pat.findall(out24)),
+        "total": final_total,
+        "avg_duration_s": avg_duration_s,
         "avg_duration_fmt": fmt_duration(avg_duration_s),
-        "trap_count":       len(durations),
+        "trap_count": len(durations),
     }
 
 def get_crowdsec() -> dict:
@@ -695,6 +713,10 @@ def get_alerts(period_hours: int = 24) -> list:
             continue
 
     bouncer_active = get_bouncer_status().get("status") == "active"
+    # Filtrer faux positifs : IP avec connexion réussie n'est pas hostile
+    for ip in list(ssh_fails.keys()):
+        if ip in ssh_ok:
+            del ssh_fails[ip]
     for ip, data in sorted(ssh_fails.items(), key=lambda x: -x[1]["count"])[:15]:
         count = data["count"]
         if count >= 20 and not bouncer_active:
@@ -817,7 +839,8 @@ def get_alerts(period_hours: int = 24) -> list:
              "list", "--since", since_str, "-o", "json"],
             timeout=15,
         )
-        cs_list = json.loads(out) if out.strip().startswith("[") else []
+        raw = out.strip()
+        cs_list = (json.loads(raw) if raw.startswith("[") else []) or []
         ips_seen = set()
         for a in (cs_list or [])[:30]:
             ts = _parse_ts(a.get("created_at", ""))
@@ -1187,7 +1210,8 @@ def get_timeline() -> list:
              "--since", "24h", "-o", "json"],
             timeout=15,
         )
-        cs_alerts = json.loads(out) if out.strip().startswith("[") else []
+        raw = out.strip()
+        s_alerts = (json.loads(raw) if raw.startswith("[") else []) or []
         for a in (cs_alerts or []):
             ts = _parse_ts(a.get("created_at", ""))
             if ts < cutoff:
