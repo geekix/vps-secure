@@ -1,5 +1,8 @@
 {
   admin off
+  servers {
+    protocols h1 h2
+  }
 }
 VPS_DOMAIN {
   handle /api/* {
