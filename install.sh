@@ -1881,6 +1881,14 @@ fi
 # ============================================================
 etape "14b" "$TOTAL_ETAPES" "Bot Funnel - redirection bots SSH vers Endlessh"
 
+# Guard compatibilité kernel — ipset requis
+if ! ipset create _vps_install_probe hash:ip 2>/dev/null; then
+    log_warn "Bot Funnel désactivé — ipset indisponible sur ce kernel KVM."
+    log_warn "  → Feature incompatible avec certains VPS KVM (ex: Hostinger KVM4)."
+    log_warn "  → Les bots SSH seront bloqués normalement par CrowdSec (DROP)."
+else
+    ipset destroy _vps_install_probe 2>/dev/null
+
 BOT_FUNNEL_SCRIPT="/usr/local/bin/vps-secure-bot-funnel.sh"
 BOT_FUNNEL_SERVICE="/etc/systemd/system/vps-secure-bot-funnel.service"
 BOT_FUNNEL_KEY_FILE="/etc/crowdsec/vps-secure-bot-funnel.key"
