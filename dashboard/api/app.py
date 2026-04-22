@@ -2007,6 +2007,19 @@ class Handler(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     _load_history()
     _load_rl_state()
+
+    # Rafraîchissement cache en arrière-plan
+    def _background_refresh():
+        time.sleep(10)  # laisser démarrer l'API
+        while True:
+            try:
+                get_metrics()
+            except Exception:
+                pass
+            time.sleep(CACHE_TTL * 0.8)
+
+    threading.Thread(target=_background_refresh, daemon=True).start()
+
     srv = ThreadingHTTPServer((API_HOST, API_PORT), Handler)
     print(f"[VPS Monitor] API on {API_HOST}:{API_PORT} — cache TTL {CACHE_TTL}s", flush=True)
     srv.serve_forever()
