@@ -24,11 +24,23 @@ from urllib.parse import urlparse, parse_qs
 API_HOST            = os.environ.get("API_HOST", "127.0.0.1")
 API_PORT            = int(os.environ.get("API_PORT", "5055"))
 CACHE_TTL           = int(os.environ.get("CACHE_TTL", "30"))
+ALERTS_CACHE_TTL   = int(os.environ.get("ALERTS_CACHE_TTL",   str(CACHE_TTL)))
+TIMELINE_CACHE_TTL = int(os.environ.get("TIMELINE_CACHE_TTL", str(CACHE_TTL)))
+CONTAINERS_CACHE_TTL = int(os.environ.get("CONTAINERS_CACHE_TTL", "30"))
 CROWDSEC_URL        = os.environ.get("CROWDSEC_URL", "http://127.0.0.1:8081")
 CROWDSEC_KEY        = os.environ.get("CROWDSEC_API_KEY", "")
 ENDLESSH_CONTAINER  = os.environ.get("ENDLESSH_CONTAINER", "endlessh")
 CROWDSEC_CONTAINER  = os.environ.get("CROWDSEC_CONTAINER", "crowdsec")
 HOSTFS              = os.environ.get("HOSTFS", "/")
+
+# ── Variables de cache (globales) ────────────────────────────────────────────
+_alerts_cache: dict       = {}
+_alerts_cache_time: dict  = {}
+_timeline_cache: list | None = None
+_timeline_cache_time: float  = 0.0
+_containers_cache: list | None = None
+_containers_cache_time: float  = 0.0
+
 
 # ── Geo IP ────────────────────────────────────────────────────────────────────
 _geo_cache: dict = {}
@@ -343,15 +355,29 @@ def get_crowdsec() -> dict:
     return {"active_bans": active_bans, "alerts_24h": alerts_24h}
 
 def get_bouncer_status() -> dict:
-    try:
-        req = urllib.request.Request(
-            f"{CROWDSEC_URL}/v1/decisions",
-            headers={"X-Api-Key": CROWDSEC_KEY} if CROWDSEC_KEY else {},
-        )
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            return {"status": "active"}
-    except Exception:
-        return {"status": "unknown"}
+    # Priorité 1 : service systemd (source de vérité réelle)
+    for cmd in [
+        ["systemctl", "is-active", "crowdsec-firewall-bouncer"],
+        ["nsenter", "-t", "1", "-m", "--", "systemctl", "is-active", "crowdsec-firewall-bouncer"],
+    ]:
+        try:
+            r = subprocess.run(cmd, capture_output=True, text=True, timeout=3)
+            if r.stdout.strip() == "active":
+                return {"status": "active"}
+        except Exception:
+            continue
+    # Fallback : LAPI
+    if CROWDSEC_KEY:
+        try:
+            req = urllib.request.Request(
+                f"{CROWDSEC_URL}/v1/decisions",
+                headers={"X-Api-Key": CROWDSEC_KEY},
+            )
+            with urllib.request.urlopen(req, timeout=3) as resp:
+                return {"status": "active"}
+        except Exception:
+            pass
+    return {"status": "unknown"}
 
 def get_telegram_status() -> dict:
     conf = "/etc/vps-secure/telegram.conf"
@@ -379,8 +405,8 @@ def get_telegram_status() -> dict:
 
 def toggle_telegram(toggle_type: str) -> dict:
     ALLOWED_SECTIONS = {"pam", "cron", "report", "ssh_alert"}
-    if section not in ALLOWED_SECTIONS:
-        return {"ok": False, "error": f"Section non autorisée : {section}"}
+    if toggle_type not in ALLOWED_SECTIONS:
+        return {"ok": False, "error": f"Section non autorisée : {toggle_type}"}
     if toggle_type == "report":
         cron_path = "/etc/cron.d/vps-secure"
         try:
@@ -650,6 +676,7 @@ def get_alerts(period_hours: int = 24) -> list:
 
     def fmt_dt(ts: float) -> str:
         return datetime.fromtimestamp(ts).strftime("%d/%m %H:%M")
+        
 
     # ── 1. SSH ────────────────────────────────────────────────────────────────
     ssh_fails: dict = {}
@@ -1116,6 +1143,17 @@ def get_alerts(period_hours: int = 24) -> list:
         a.pop("_ts", None)
 
     return alerts[:100]
+    
+def get_alerts_cached(period_hours: int = 24) -> list:
+    global _alerts_cache, _alerts_cache_time
+    now = time.time()
+    if (period_hours in _alerts_cache and
+            (now - _alerts_cache_time.get(period_hours, 0)) < ALERTS_CACHE_TTL):
+        return _alerts_cache[period_hours]
+    result = get_alerts(period_hours)
+    _alerts_cache[period_hours] = result
+    _alerts_cache_time[period_hours] = now
+    return result
 
 
 def get_timeline() -> list:
@@ -1202,6 +1240,7 @@ def get_timeline() -> list:
             "_ip":   ip,
             "count": data["count"],
         })
+        
 
     # ── CrowdSec bans ─────────────────────────────────────────────────────────
     try:
@@ -1211,7 +1250,7 @@ def get_timeline() -> list:
             timeout=15,
         )
         raw = out.strip()
-        s_alerts = (json.loads(raw) if raw.startswith("[") else []) or []
+        cs_alerts = (json.loads(raw) if raw.startswith("[") else []) or []
         for a in (cs_alerts or []):
             ts = _parse_ts(a.get("created_at", ""))
             if ts < cutoff:
@@ -1310,6 +1349,15 @@ def get_timeline() -> list:
             e["date"] = "---"
 
     return events
+    
+def get_timeline_cached() -> list:
+    global _timeline_cache, _timeline_cache_time
+    now = time.time()
+    if _timeline_cache is not None and (now - _timeline_cache_time) < TIMELINE_CACHE_TTL:
+        return _timeline_cache
+    _timeline_cache = get_timeline()
+    _timeline_cache_time = now
+    return _timeline_cache
 
 
 def get_score(metrics: dict) -> dict:
@@ -1446,6 +1494,14 @@ def get_containers() -> list:
 
     return result
 
+def get_containers_cached() -> list:
+    global _containers_cache, _containers_cache_time
+    now = time.time()
+    if _containers_cache is not None and (now - _containers_cache_time) < CONTAINERS_CACHE_TTL:
+        return _containers_cache
+    _containers_cache = get_containers()
+    _containers_cache_time = now
+    return _containers_cache
 
 # ── Cache & Aggregator ────────────────────────────────────────────────────────
 def collect() -> dict:
@@ -1803,10 +1859,10 @@ ROUTES = {
     "/api/metrics":             lambda: get_metrics(),
     "/api/health":              lambda: {"status": "ok", "ts": int(time.time())},
     "/api/history":             lambda: _history,
-    "/api/timeline":            lambda: get_timeline(),
+    "/api/timeline":            lambda: get_timeline_cached(),
     "/api/telegram/status":     lambda: get_telegram_status(),
-    "/api/aide/rebase/status": lambda: _get_rebase_status(),
-    "/api/containers":          lambda: get_containers(),
+    "/api/aide/rebase/status":  lambda: _get_rebase_status(),
+    "/api/containers":          lambda: get_containers_cached(),
     "/api/containers/updates":  lambda: get_container_updates(),
     "/api/geomap":              api_geomap,
 }
@@ -1846,7 +1902,7 @@ class Handler(BaseHTTPRequestHandler):
             period_str   = params.get("period", ["1d"])[0]
             period_map   = {"1d": 24, "7d": 168, "30d": 720}
             period_hours = period_map.get(period_str, 24)
-            fn = lambda: get_alerts(period_hours)
+            fn = lambda: get_alerts_cached(period_hours)
         else:
             fn = ROUTES.get(clean_path)
 
