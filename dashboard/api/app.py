@@ -23,7 +23,7 @@ from urllib.parse import urlparse, parse_qs
 # ── Config ────────────────────────────────────────────────────────────────────
 API_HOST            = os.environ.get("API_HOST", "127.0.0.1")
 API_PORT            = int(os.environ.get("API_PORT", "5055"))
-CACHE_TTL           = int(os.environ.get("CACHE_TTL", "30"))
+CACHE_TTL           = int(os.environ.get("CACHE_TTL", "120"))
 ALERTS_CACHE_TTL   = int(os.environ.get("ALERTS_CACHE_TTL",   str(CACHE_TTL)))
 TIMELINE_CACHE_TTL = int(os.environ.get("TIMELINE_CACHE_TTL", str(CACHE_TTL)))
 CONTAINERS_CACHE_TTL = int(os.environ.get("CONTAINERS_CACHE_TTL", "30"))
@@ -2007,19 +2007,6 @@ class Handler(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     _load_history()
     _load_rl_state()
-
-    # Rafraîchissement cache en arrière-plan
-    def _background_refresh():
-        time.sleep(10)  # laisser démarrer l'API
-        while True:
-            try:
-                get_metrics()
-            except Exception:
-                pass
-            time.sleep(CACHE_TTL * 0.8)
-
-    threading.Thread(target=_background_refresh, daemon=True).start()
-
     srv = ThreadingHTTPServer((API_HOST, API_PORT), Handler)
     print(f"[VPS Monitor] API on {API_HOST}:{API_PORT} — cache TTL {CACHE_TTL}s", flush=True)
     srv.serve_forever()
