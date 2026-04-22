@@ -16,7 +16,7 @@ import base64
 import hmac
 import threading
 from datetime import datetime
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, HTTPServer, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 
@@ -2007,6 +2007,6 @@ class Handler(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     _load_history()
     _load_rl_state()
-    srv = HTTPServer((API_HOST, API_PORT), Handler)
+    srv = ThreadingHTTPServer((API_HOST, API_PORT), Handler)
     print(f"[VPS Monitor] API on {API_HOST}:{API_PORT} — cache TTL {CACHE_TTL}s", flush=True)
     srv.serve_forever()
