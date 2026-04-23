@@ -1157,8 +1157,10 @@ cat > /etc/audit/rules.d/vps-secure.rules << 'AUDITEOF'
 -w /home/vpsadmin/.bashrc      -p wa -k vpsadmin_profile
 -w /home/vpsadmin/.profile     -p wa -k vpsadmin_profile
 
-# Escalade de privilèges
--a always,exit -F arch=b64 -S execve -F euid=0 -F auid>=1000 -F auid!=4294967295 -k privilege_escalation
+# Escalade de privilèges — exécution depuis répertoires suspects (fileless attack)
+-a always,exit -F arch=b64 -S execve -F euid=0 -F auid>=1000 -F auid!=4294967295 -F dir=/tmp -k privilege_escalation
+-a always,exit -F arch=b64 -S execve -F euid=0 -F auid>=1000 -F auid!=4294967295 -F dir=/dev/shm -k privilege_escalation
+-a always,exit -F arch=b64 -S execve -F euid=0 -F auid>=1000 -F auid!=4294967295 -F dir=/var/tmp -k privilege_escalation
 
 # Modification de l'heure système
 -a always,exit -F arch=b64 -S adjtimex -S settimeofday -S clock_settime -k time_change
