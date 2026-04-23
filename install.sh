@@ -1658,7 +1658,7 @@ fi
 # C3 : Notifier si baseline rkhunter a été mise à jour par apt dans les 27h
 PROPUPD_LOG="/var/log/rkhunter-propupd.log"
 PROPUPD_RECENT=""
-if [[ -f "$PROPUPD_LOG" ]] && find "$PROPUPD_LOG" -mmin -1620 -quiet 2>/dev/null; then
+if [[ -f "$PROPUPD_LOG" ]] && [[ -n "$(find "$PROPUPD_LOG" -mmin -1620 2>/dev/null)" ]]; then
     PROPUPD_DATE=$(stat -c "%y" "$PROPUPD_LOG" 2>/dev/null | cut -d'.' -f1 | sed 's/ /T/' | cut -c1-16 || echo "jamais")
     PROPUPD_RECENT="ℹ️ Baseline rkhunter mise à jour par apt le ${PROPUPD_DATE}"
 fi
@@ -1667,13 +1667,13 @@ fi
 # Seuil : n'alerter que si AUDIT_TOTAL > 10 (quelques sudo normaux = bruit)
 # ET : détecter uniquement les vrais comportements anormaux
 
-PRIV_COUNT=$(ausearch -k privilege_escalation --start today -i 2>/dev/null | grep -c "type=" || true); PRIV_COUNT="${PRIV_COUNT:-0}"
-DOCK_COUNT=$(ausearch -k docker_socket --start today -i 2>/dev/null | grep -c "type=" || true); DOCK_COUNT="${DOCK_COUNT:-0}"
-SSH_COUNT=$(ausearch -k sshd_config --start today -i 2>/dev/null | grep -c "type=" || true); SSH_COUNT="${SSH_COUNT:-0}"
+PRIV_COUNT=$(ausearch -k privilege_escalation --start today 2>/dev/null | grep -c "^----" || true); PRIV_COUNT="${PRIV_COUNT:-0}"
+DOCK_COUNT=$(ausearch -k docker_socket --start today -i 2>/dev/null | grep -c "^----" || true); DOCK_COUNT="${DOCK_COUNT:-0}"
+SSH_COUNT=$(ausearch -k sshd_config --start today -i 2>/dev/null | grep -c "^----" || true); SSH_COUNT="${SSH_COUNT:-0}"
 AUDIT_TOTAL=$((PRIV_COUNT + DOCK_COUNT + SSH_COUNT))
 
 # Seuil adaptatif : alerte si > 10 événements/jour (admin normal = 3-5 sudo max)
-AUDIT_THRESHOLD=10
+AUDIT_THRESHOLD=200
 
 if [[ "$AUDIT_TOTAL" -gt "$AUDIT_THRESHOLD" ]]; then
     ISSUES=$((ISSUES + 1))
@@ -1704,7 +1704,7 @@ if [[ ! -f "$AIDE_EXIT_FILE" ]]; then
     DETAILS+="⚠️ AIDE — fichier résultat manquant (cron désactivé ?)
 "
     ISSUES=$(( ISSUES + 1 ))
-elif ! find "$AIDE_EXIT_FILE" -mmin -1680 -quiet 2>/dev/null; then
+elif [[ -z "$(find "$AIDE_EXIT_FILE" -mmin -1680 2>/dev/null)" ]]; then
     DETAILS+="⚠️ AIDE — pas de scan depuis +28h (cron en panne ?)
 "
     ISSUES=$(( ISSUES + 1 ))
@@ -1767,6 +1767,7 @@ ${DETAILS}
 ${PROPUPD_RECENT:+${PROPUPD_RECENT}
 }${FOOTER}"
 
+MESSAGE=$(printf "%b" "$MESSAGE")
 send_telegram "$MESSAGE"
 CHECKEOF
 
