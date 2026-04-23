@@ -832,7 +832,7 @@ function updateCards(d) {
   $('sub-aide').textContent = `Dernier scan : ${ai.last_scan || '—'}`;
   setCard('card-aide',aiSt==='changes'?'a-red':aiSt==='clean'?'a-green':'');
   const _aidWrap=$('aide-rebase-wrap');
-  if(_aidWrap) _aidWrap.style.display=aiSt==='changes'?'block':'none';
+  if(_aidWrap) _aidWrap.style.display=aiSt==='rebase'?'block':'none';
   $('val-ip').textContent = s.ip || '—';
   $('sys-mem').textContent  = mem.pct  != null ? `${mem.pct}%`  : '—';
   $('sys-disk').textContent = dsk.pct  != null ? `${dsk.pct}%`  : '—';
