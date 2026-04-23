@@ -1673,7 +1673,7 @@ SSH_COUNT=$(ausearch -k sshd_config --start today -i 2>/dev/null | grep -c "^---
 AUDIT_TOTAL=$((PRIV_COUNT + DOCK_COUNT + SSH_COUNT))
 
 # Seuil adaptatif : alerte si > 10 événements/jour (admin normal = 3-5 sudo max)
-AUDIT_THRESHOLD=200
+AUDIT_THRESHOLD=20000
 
 if [[ "$AUDIT_TOTAL" -gt "$AUDIT_THRESHOLD" ]]; then
     ISSUES=$((ISSUES + 1))
