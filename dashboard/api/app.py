@@ -1225,7 +1225,6 @@ def get_timeline() -> list:
                         "_ip":   m_ip.group(1) if m_ip else "",
                         "count": 1,
                     })
-            break
         except Exception:
             continue
 
@@ -1347,6 +1346,45 @@ def get_timeline() -> list:
         except Exception:
             e["time"] = "---"
             e["date"] = "---"
+            
+    # ── UFW blocks summary ────────────────────────────────────────────────────
+    try:
+        ufw_total = 0
+        for log_path in ["/var/log/ufw.log", "/var/log/ufw.log.1"]:
+            try:
+                with open(log_path, errors="replace") as f:
+                    for line in f:
+                        if "UFW BLOCK" in line:
+                            ufw_total += 1
+            except Exception:
+                pass
+        if ufw_total > 0:
+            events.append({
+                "ts": now - 60,
+                "type": "ufw",
+                "icon": "🔥",
+                "color": "orange",
+                "title": f"UFW — {ufw_total} connexions bloquées",
+                "detail": "Pare-feu actif",
+            })
+    except Exception:
+        pass
+
+    # ── Endlessh summary ──────────────────────────────────────────────────────
+    try:
+        e_data = get_endlessh()
+        bot_count = e_data.get("total", 0)
+        if bot_count > 0:
+            events.append({
+                "ts": now - 120,
+                "type": "endlessh",
+                "icon": "🪤",
+                "color": "blue",
+                "title": f"Endlessh — {bot_count} bots piégés (total)",
+                "detail": f"Durée moy. : {e_data.get('avg_duration_fmt', '---')}",
+            })
+    except Exception:
+        pass
 
     return events
     
