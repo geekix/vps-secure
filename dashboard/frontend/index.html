@@ -507,6 +507,14 @@
             style="width:100%;padding:10px 16px;border-radius:8px;border:1.5px solid #f59e0b;background:rgba(245,158,11,0.08);color:#f59e0b;font-size:12px;font-weight:700;cursor:pointer;">
             ⚠️ Mettre à jour la baseline
           </button>
+          
+          <!-- ✅ AJOUTER ICI — diff AIDE avant confirmation -->
+          <div id="aide-diff-box" style="background:#1a1a2e;color:#e2e8f0;font-size:11px;
+            font-family:monospace;padding:10px;border-radius:6px;max-height:200px;
+            overflow-y:auto;margin-top:8px;border:1px solid #374151;display:none;">
+            <span id="aide-diff-content">Chargement…</span>
+          </div>
+          
           <div id="aide-rebase-feedback" style="display:none;font-size:11px;color:var(--muted);margin-top:8px;text-align:center;"></div>
         </div>
       </div>
@@ -833,6 +841,24 @@ function updateCards(d) {
   setCard('card-aide',aiSt==='changes'?'a-red':aiSt==='clean'?'a-green':'');
   const _aidWrap=$('aide-rebase-wrap');
   if(_aidWrap) _aidWrap.style.display=aiSt==='rebase'?'block':'none';
+
+  // ✅ VERSION CORRIGÉE
+  const diffBox = $('aide-diff-box'), diffContent = $('aide-diff-content');
+  if (diffBox && diffContent) {
+    if (aiSt === 'rebase') {
+      diffBox.style.display = 'block';
+      // Fetch uniquement si pas encore chargé (évite appel à chaque refresh)
+      if (diffContent.textContent === 'Chargement…') {
+        fetch('/api/aide/diff', { headers: { 'Authorization': AUTH } })
+          .then(r => r.json())
+          .then(d => { diffContent.textContent = d.log || 'Aucun détail'; })
+          .catch(() => { diffContent.textContent = 'Erreur lecture log AIDE'; });
+      }
+    } else {
+      diffBox.style.display = 'none';
+      diffContent.textContent = 'Chargement…'; // reset pour la prochaine fois
+    }
+  }
   $('val-ip').textContent = s.ip || '—';
   $('sys-mem').textContent  = mem.pct  != null ? `${mem.pct}%`  : '—';
   $('sys-disk').textContent = dsk.pct  != null ? `${dsk.pct}%`  : '—';
