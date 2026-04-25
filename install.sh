@@ -2216,6 +2216,15 @@ cat >> /etc/aide/aide.conf << 'AIDEEXCLEOF'
 !/var/log/btmp$
 !/var/log/wtmp$
 !/var/log/lastlog$
+!/var/log/
+!/var/cache/apt-show-versions/
+!/var/cache/fwupd/
+!/var/cache/swcatalog/
+!/var/lib/fwupd/
+!/var/lib/swcatalog/
+!/var/lib/PackageKit/
+!/var/lib/rkhunter/db/rkhunter_prop_list.dat
+!/var/lib/aide/aide.db.new
 !/var/lib/systemd/
 !/var/cache/ldconfig/
 !/var/cache/debconf/
