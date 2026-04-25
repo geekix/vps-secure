@@ -517,6 +517,27 @@ def get_aide() -> dict:
     except Exception:
         pass
     return {"status": status, "last_scan": last_scan}
+    
+def _aide_diff() -> dict:
+    log_path = f"{HOSTFS}var/log/aide-daily.log"
+    try:
+        with open(log_path, "r", errors="replace") as f:
+            raw = f.read(30000)
+        lines = raw.splitlines()
+        keep, in_section = [], False
+        for line in lines:
+            if any(line.startswith(k) for k in ("Summary", "Changed", "Added", "Removed", "---")):
+                in_section = True
+            if in_section:
+                keep.append(line)
+            if len(keep) > 200:
+                keep.append("… (log tronqué)")
+                break
+        return {"available": True, "log": "\n".join(keep) if keep else raw[:3000]}
+    except FileNotFoundError:
+        return {"available": False, "log": "Log AIDE non trouvé"}
+    except Exception as e:
+        return {"available": False, "log": f"Erreur : {e}"}
 
 def get_system() -> dict:
     try:
@@ -1900,6 +1921,7 @@ ROUTES = {
     "/api/timeline":            lambda: get_timeline_cached(),
     "/api/telegram/status":     lambda: get_telegram_status(),
     "/api/aide/rebase/status":  lambda: _get_rebase_status(),
+    "/api/aide/diff":           lambda: jsonify(_aide_diff()),
     "/api/containers":          lambda: get_containers_cached(),
     "/api/containers/updates":  lambda: get_container_updates(),
     "/api/geomap":              api_geomap,
