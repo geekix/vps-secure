@@ -2232,6 +2232,12 @@ cat >> /etc/aide/aide.conf << 'AIDEEXCLEOF'
 !/snap/
 !/var/lib/docker/volumes/
 !/var/lib/docker/overlay2/
+!/var/lib/apt/periodic(/.*)?$
+!/var/lib/ubuntu-advantage(/.*)?$
+!/var/lib/unattended-upgrades(/.*)?$
+!/tmp(/.*)?$
+!/root/\.lesshst$
+!/etc/vps-secure/expected-ports\.conf$
 AIDEEXCLEOF
 
 # AIDE --init : déplacé en fin de script (issue #43)
