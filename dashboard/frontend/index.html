@@ -838,9 +838,9 @@ function updateCards(d) {
   $('val-aide').innerHTML = aiSt === 'clean' ? '✅ <b>Propre</b>' : aiSt === 'rebase' ? '🔄 Rebase requis' : aiSt === 'changes' ? '🚨 Modifications !' : '❓ Inconnu';
   setPill('pill-aide', aiSt === 'clean' ? 'clean' : aiSt === 'rebase' ? 'warning' : aiSt === 'changes' ? 'danger' : 'unk');
   $('sub-aide').textContent = `Dernier scan : ${ai.last_scan || '—'}`;
-  setCard('card-aide',aiSt==='changes'?'a-red':aiSt==='clean'?'a-green':'');
-  const _aidWrap=$('aide-rebase-wrap');
-  if(_aidWrap) _aidWrap.style.display=aiSt==='rebase'?'block':'none';
+  setCard('card-aide', aiSt === 'changes' ? 'a-red' : aiSt === 'clean' ? 'a-green' : aiSt === 'rebase' ? 'a-gold' : '');
+  const _aidWrap = $('aide-rebase-wrap');
+  if (_aidWrap) _aidWrap.style.display = (aiSt === 'changes' || aiSt === 'rebase') ? 'block' : 'none';
 
   // ✅ VERSION CORRIGÉE
   const diffBox = $('aide-diff-box'), diffContent = $('aide-diff-content');
